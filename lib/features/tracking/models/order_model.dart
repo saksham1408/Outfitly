@@ -6,7 +6,8 @@ class OrderStatus {
   const OrderStatus(this.key, this.label, this.icon);
 
   static const allStatuses = [
-    OrderStatus('order_placed', 'Order Placed', '🛒'),
+    OrderStatus('pending_admin_approval', 'Pending Approval', '⏳'),
+    OrderStatus('accepted', 'Order Accepted', '✅'),
     OrderStatus('fabric_sourcing', 'Fabric Sourcing', '🧵'),
     OrderStatus('cutting', 'Cutting', '✂️'),
     OrderStatus('stitching', 'Stitching', '🪡'),
