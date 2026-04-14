@@ -147,7 +147,9 @@ abstract final class AppRouter {
       GoRoute(
         path: '/cart',
         name: 'cart',
-        builder: (context, state) => const CartScreen(),
+        builder: (context, state) => CartScreen(
+          payload: state.extra as OrderPayload?,
+        ),
       ),
       GoRoute(
         path: '/checkout',
