@@ -1,0 +1,16 @@
+services:
+  directus:
+    image: directus/directus:latest
+    ports:
+      - "8055:8055"
+    volumes:
+      - ./data/database:/directus/database
+      - ./data/uploads:/directus/uploads
+    environment:
+      KEY: "***REMOVED***"
+      SECRET: "***REMOVED***"
+      ADMIN_EMAIL: "admin@outfitly.com"
+      ADMIN_PASSWORD: "***REMOVED***"
+      DB_CLIENT: "sqlite3"
+      DB_FILENAME: "/directus/database/data.db"
+      PUBLIC_URL: "http://localhost:8055"
