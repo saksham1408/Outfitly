@@ -87,7 +87,8 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _search(String query) async {
-    if (query.trim().length < 2) return;
+    final trimmed = query.trim();
+    if (trimmed.length < 2) return;
 
     setState(() {
       _searching = true;
@@ -95,33 +96,67 @@ class _SearchScreenState extends State<SearchScreen> {
     });
 
     try {
-      final productData = await AppSupabase.client
-          .from('products')
-          .select()
-          .or(
-            'name.ilike.%$query%,description.ilike.%$query%,fabric_options.cs.{$query}',
-          );
+      // Escape any PostgREST "or" filter special chars (commas / parens).
+      final escaped = trimmed.replaceAll(',', '').replaceAll('(', '').replaceAll(')', '');
+      final lowerQuery = trimmed.toLowerCase();
 
+      // Search products (name + description only; fabric filter done client-side below)
+      List<ProductModel> products = [];
+      try {
+        final productData = await AppSupabase.client
+            .from('products')
+            .select()
+            .or('name.ilike.%$escaped%,description.ilike.%$escaped%');
+
+        products = productData.map((e) => ProductModel.fromJson(e)).toList();
+      } catch (e) {
+        debugPrint('Product search error: $e');
+      }
+
+      // Extra client-side match on fabric options (text array) for all products
+      try {
+        final allProducts = await AppSupabase.client.from('products').select();
+        final byFabric = allProducts
+            .map((e) => ProductModel.fromJson(e))
+            .where((p) => p.fabricOptions.any(
+                  (f) => f.toLowerCase().contains(lowerQuery),
+                ))
+            .toList();
+
+        // Merge without duplicates
+        final existing = products.map((p) => p.id).toSet();
+        for (final p in byFabric) {
+          if (!existing.contains(p.id)) products.add(p);
+        }
+      } catch (e) {
+        debugPrint('Fabric match error: $e');
+      }
+
+      // Lookbook search (client-side)
       final allLookbook = await _lookbookService.getAllItems();
-      final lowerQuery = query.toLowerCase();
+      final lookbookMatches = allLookbook
+          .where((item) =>
+              item.name.toLowerCase().contains(lowerQuery) ||
+              (item.description?.toLowerCase().contains(lowerQuery) ?? false) ||
+              (item.fabricType?.toLowerCase().contains(lowerQuery) ?? false) ||
+              (item.category?.toLowerCase().contains(lowerQuery) ?? false))
+          .toList();
 
       if (!mounted) return;
       setState(() {
-        _products =
-            productData.map((e) => ProductModel.fromJson(e)).toList();
-        _lookbookItems = allLookbook
-            .where((item) =>
-                item.name.toLowerCase().contains(lowerQuery) ||
-                (item.description?.toLowerCase().contains(lowerQuery) ??
-                    false) ||
-                (item.fabricType?.toLowerCase().contains(lowerQuery) ??
-                    false) ||
-                (item.category?.toLowerCase().contains(lowerQuery) ?? false))
-            .toList();
+        _products = products;
+        _lookbookItems = lookbookMatches;
         _searching = false;
       });
     } catch (e) {
-      if (mounted) setState(() => _searching = false);
+      debugPrint('Search error: $e');
+      if (mounted) {
+        setState(() {
+          _products = [];
+          _lookbookItems = [];
+          _searching = false;
+        });
+      }
     }
   }
 
