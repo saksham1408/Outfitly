@@ -27,14 +27,14 @@ class _HomeScreenState extends State<HomeScreen>
   List<ProductModel> _allProducts = [];
   bool _loading = true;
 
-  // Active tab filter: 'all', 'men', 'women', 'kids'
-  static const _genderTabs = ['all', 'men', 'women', 'kids'];
-  String _activeGender = 'all';
+  // Active tab filter: 'men', 'women', 'kids'
+  static const _genderTabs = ['men', 'women', 'kids'];
+  String _activeGender = 'men';
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_onTabChanged);
     _loadData();
   }
@@ -68,7 +68,6 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   List<ProductModel> get _filteredProducts {
-    if (_activeGender == 'all') return _allProducts;
     return _allProducts
         .where((p) => p.gender == _activeGender || p.gender == 'all')
         .toList();
@@ -253,9 +252,7 @@ class _HomeScreenState extends State<HomeScreen>
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
-                                  _activeGender == 'all'
-                                      ? 'For You'
-                                      : 'For ${_activeGender[0].toUpperCase()}${_activeGender.substring(1)}',
+                                  'For ${_activeGender[0].toUpperCase()}${_activeGender.substring(1)}',
                                   style: GoogleFonts.newsreader(
                                     fontSize: 22,
                                     fontStyle: FontStyle.italic,
