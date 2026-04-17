@@ -6,7 +6,6 @@ import '../catalog/home_screen.dart';
 import '../lookbook/screens/lookbook_screen.dart';
 import '../search/screens/search_screen.dart';
 import '../tracking/screens/orders_screen.dart';
-import '../profile/screens/profile_screen.dart';
 
 class MainShell extends StatefulWidget {
   final int initialIndex;
@@ -25,7 +24,6 @@ class _MainShellState extends State<MainShell> {
     LookbookScreen(),
     SearchScreen(),
     OrdersScreen(),
-    ProfileScreen(),
   ];
 
   @override
@@ -62,7 +60,6 @@ class _MainShellState extends State<MainShell> {
                 _navItem(1, Icons.auto_stories_outlined, Icons.auto_stories_rounded, 'Lookbook'),
                 _navItem(2, Icons.search_rounded, Icons.search_rounded, 'Search'),
                 _navItem(3, Icons.local_shipping_outlined, Icons.local_shipping_rounded, 'Orders'),
-                _navItem(4, Icons.person_outline_rounded, Icons.person_rounded, 'Profile'),
               ],
             ),
           ),
@@ -78,7 +75,7 @@ class _MainShellState extends State<MainShell> {
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: isActive ? AppColors.primary.withAlpha(15) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
