@@ -95,7 +95,7 @@ class _HomeScreenState extends State<HomeScreen>
                       pinned: true,
                       delegate: HomeStickyHeader(
                         tabController: _tabController,
-                        onSearchTap: () => context.push('/catalog'),
+                        onSearchTap: () => context.push('/search'),
                         onNotificationTap: () {},
                         onProfileTap: () => context.push('/profile'),
                         onTabTap: (index) {
