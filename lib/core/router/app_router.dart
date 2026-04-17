@@ -21,6 +21,7 @@ import '../../features/lookbook/screens/lookbook_screen.dart';
 import '../../features/lookbook/screens/lookbook_detail_screen.dart';
 import '../../features/shell/main_shell.dart';
 import '../../features/profile/screens/profile_screen.dart';
+import '../../features/search/screens/search_screen.dart';
 
 /// Central route configuration for the app.
 abstract final class AppRouter {
@@ -89,6 +90,11 @@ abstract final class AppRouter {
         path: '/profile',
         name: 'profile',
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/search',
+        name: 'search',
+        builder: (context, state) => const SearchScreen(canPop: true),
       ),
       GoRoute(
         path: '/catalog',
