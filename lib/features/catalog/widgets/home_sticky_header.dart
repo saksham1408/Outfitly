@@ -10,12 +10,14 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
   final VoidCallback onSearchTap;
   final VoidCallback onNotificationTap;
   final VoidCallback onProfileTap;
+  final ValueChanged<int>? onTabTap;
 
   HomeStickyHeader({
     required this.tabController,
     required this.onSearchTap,
     required this.onNotificationTap,
     required this.onProfileTap,
+    this.onTabTap,
   });
 
   // Heights per row
@@ -215,6 +217,7 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
             ),
             child: TabBar(
               controller: tabController,
+              onTap: onTabTap,
               isScrollable: false,
               labelColor: AppColors.primary,
               unselectedLabelColor: AppColors.textTertiary,

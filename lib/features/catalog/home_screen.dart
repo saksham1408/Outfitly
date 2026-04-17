@@ -30,6 +30,9 @@ class _HomeScreenState extends State<HomeScreen>
   // Active tab filter: 'men', 'women', 'kids'
   static const _genderTabs = ['men', 'women', 'kids'];
   String _activeGender = 'men';
+  // True once the user has explicitly tapped a tab. Sub-category rows are
+  // hidden until this flips — so the app doesn't show sub-sections on first open.
+  bool _userTappedTab = false;
 
   @override
   void initState() {
@@ -43,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen>
     if (_tabController.indexIsChanging) return;
     setState(() {
       _activeGender = _genderTabs[_tabController.index];
+      _userTappedTab = true;
     });
   }
 
@@ -94,11 +98,18 @@ class _HomeScreenState extends State<HomeScreen>
                         onSearchTap: () => context.push('/catalog'),
                         onNotificationTap: () {},
                         onProfileTap: () => context.push('/profile'),
+                        onTabTap: (index) {
+                          setState(() {
+                            _activeGender = _genderTabs[index];
+                            _userTappedTab = true;
+                          });
+                        },
                       ),
                     ),
 
-                    // ── Gender-specific Category Row (MEN / WOMEN) ──
-                    if (_activeGender == 'men') ...[
+                    // ── Gender-specific Category Row ──
+                    // Only shown once the user has explicitly tapped a tab.
+                    if (_userTappedTab && _activeGender == 'men') ...[
                       const SliverToBoxAdapter(child: SizedBox(height: 16)),
                       SliverToBoxAdapter(
                         child: TabCategoryRow(
@@ -107,7 +118,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                       ),
                       const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                    ] else if (_activeGender == 'women') ...[
+                    ] else if (_userTappedTab && _activeGender == 'women') ...[
                       const SliverToBoxAdapter(child: SizedBox(height: 16)),
                       SliverToBoxAdapter(
                         child: TabCategoryRow(
@@ -116,7 +127,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                       ),
                       const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                    ] else if (_activeGender == 'kids') ...[
+                    ] else if (_userTappedTab && _activeGender == 'kids') ...[
                       const SliverToBoxAdapter(child: SizedBox(height: 16)),
                       SliverToBoxAdapter(
                         child: TabCategoryRow(
