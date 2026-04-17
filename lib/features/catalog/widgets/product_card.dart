@@ -14,6 +14,8 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mainImage = product.images.isNotEmpty ? product.images.first : null;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -22,27 +24,24 @@ class ProductCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
           border: Border.all(color: AppColors.border, width: 0.5),
         ),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Image Placeholder ──
+            // ── Product Image ──
             Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceVariant,
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(AppSpacing.radiusLg),
-                  ),
-                ),
-                child: Center(
-                  child: Icon(
-                    Icons.checkroom_rounded,
-                    size: 40,
-                    color: AppColors.textTertiary.withAlpha(100),
-                  ),
-                ),
-              ),
+              child: mainImage != null
+                  ? Image.network(
+                      mainImage,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      errorBuilder: (_, __, ___) => _placeholder(),
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+                        return _placeholder(loading: true);
+                      },
+                    )
+                  : _placeholder(),
             ),
 
             // ── Info ──
@@ -76,6 +75,22 @@ class ProductCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _placeholder({bool loading = false}) {
+    return Container(
+      width: double.infinity,
+      color: AppColors.surfaceVariant,
+      child: Center(
+        child: loading
+            ? const CircularProgressIndicator(strokeWidth: 2)
+            : Icon(
+                Icons.checkroom_rounded,
+                size: 40,
+                color: AppColors.textTertiary.withAlpha(100),
+              ),
       ),
     );
   }
