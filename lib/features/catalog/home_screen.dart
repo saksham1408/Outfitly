@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/theme.dart';
 import 'catalog_service.dart';
+import 'data/kids_categories.dart';
 import 'data/men_categories.dart';
 import 'data/women_categories.dart';
 import 'models/product_model.dart';
@@ -112,6 +113,15 @@ class _HomeScreenState extends State<HomeScreen>
                       SliverToBoxAdapter(
                         child: TabCategoryRow(
                           categories: womenCategories,
+                          onCategoryTap: (cat) => context.push('/catalog'),
+                        ),
+                      ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                    ] else if (_activeGender == 'kids') ...[
+                      const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                      SliverToBoxAdapter(
+                        child: TabCategoryRow(
+                          categories: kidsCategories,
                           onCategoryTap: (cat) => context.push('/catalog'),
                         ),
                       ),
