@@ -20,6 +20,7 @@ import '../../features/tracking/screens/order_tracking_screen.dart';
 import '../../features/lookbook/screens/lookbook_screen.dart';
 import '../../features/lookbook/screens/lookbook_detail_screen.dart';
 import '../../features/shell/main_shell.dart';
+import '../../features/profile/screens/profile_screen.dart';
 
 /// Central route configuration for the app.
 abstract final class AppRouter {
@@ -83,6 +84,11 @@ abstract final class AppRouter {
         path: '/home',
         name: 'home',
         builder: (context, state) => const MainShell(),
+      ),
+      GoRoute(
+        path: '/profile',
+        name: 'profile',
+        builder: (context, state) => const ProfileScreen(),
       ),
       GoRoute(
         path: '/catalog',

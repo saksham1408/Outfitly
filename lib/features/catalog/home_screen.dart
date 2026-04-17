@@ -4,9 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/theme.dart';
 import 'catalog_service.dart';
-import 'models/category_model.dart';
 import 'models/product_model.dart';
 import 'widgets/home_sticky_header.dart';
+import 'widgets/men_category_row.dart';
 import 'widgets/product_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -21,7 +21,6 @@ class _HomeScreenState extends State<HomeScreen>
   final _catalogService = CatalogService();
   late final TabController _tabController;
 
-  List<CategoryModel> _categories = [];
   List<ProductModel> _allProducts = [];
   bool _loading = true;
 
@@ -53,14 +52,10 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _loadData() async {
     try {
-      final results = await Future.wait([
-        _catalogService.getCategories(),
-        _catalogService.getAllProducts(),
-      ]);
+      final products = await _catalogService.getAllProducts();
       if (!mounted) return;
       setState(() {
-        _categories = results[0] as List<CategoryModel>;
-        _allProducts = results[1] as List<ProductModel>;
+        _allProducts = products;
         _loading = false;
       });
     } catch (e) {
@@ -96,32 +91,21 @@ class _HomeScreenState extends State<HomeScreen>
                         tabController: _tabController,
                         onSearchTap: () => context.push('/catalog'),
                         onNotificationTap: () {},
-                        onProfileTap: () {},
+                        onProfileTap: () => context.push('/profile'),
                       ),
                     ),
 
-                    const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-                    // ── Categories ──
-                    if (_categories.isNotEmpty)
+                    // ── MEN Categories (shown ONLY on MEN tab) ──
+                    if (_activeGender == 'men') ...[
+                      const SliverToBoxAdapter(child: SizedBox(height: 16)),
                       SliverToBoxAdapter(
-                        child: SizedBox(
-                          height: 92,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: _categories.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(width: 12),
-                            itemBuilder: (context, index) {
-                              final cat = _categories[index];
-                              return _categoryBubble(cat);
-                            },
-                          ),
+                        child: MenCategoryRow(
+                          onCategoryTap: (cat) => context.push('/catalog'),
                         ),
                       ),
-
-                    const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                      const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                    ] else
+                      const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
                     // ── Hero Banner ──
                     SliverToBoxAdapter(
@@ -349,51 +333,4 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _categoryBubble(CategoryModel cat) {
-    return Column(
-      children: [
-        GestureDetector(
-          onTap: () => context.push('/catalog'),
-          child: Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.accentContainer,
-                  AppColors.accentLight,
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.accent.withAlpha(40), width: 2),
-            ),
-            child: const Center(
-              child: Icon(
-                Icons.checkroom_rounded,
-                color: AppColors.primary,
-                size: 28,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        SizedBox(
-          width: 72,
-          child: Text(
-            cat.name,
-            style: GoogleFonts.manrope(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
 }
