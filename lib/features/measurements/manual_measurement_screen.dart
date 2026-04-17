@@ -94,8 +94,10 @@ class _ManualMeasurementScreenState extends State<ManualMeasurementScreen>
         }
       }
 
-      // Save to Supabase
-      await AppSupabase.client.from('measurements').upsert(dbData);
+      // Save to Supabase (onConflict handles existing row for this user)
+      await AppSupabase.client
+          .from('measurements')
+          .upsert(dbData, onConflict: 'user_id');
 
       // Pass measurements to payload
       final payload = widget.payload;
