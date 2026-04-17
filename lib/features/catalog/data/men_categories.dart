@@ -1,20 +1,14 @@
 import 'package:flutter/material.dart';
 
+import 'tab_category.dart';
+
 /// Category row shown exclusively at the top of the MEN tab.
-class MenCategory {
-  final String name;
-  final IconData icon;
-
-  const MenCategory({required this.name, required this.icon});
-}
-
-/// Exact order as specified in the design review.
-const List<MenCategory> menCategories = [
-  MenCategory(name: 'Ethnics', icon: Icons.dry_cleaning_rounded),
-  MenCategory(name: 'Sherwanis', icon: Icons.accessibility_new_rounded),
-  MenCategory(name: 'Blazers', icon: Icons.checkroom_rounded),
-  MenCategory(name: 'Suits', icon: Icons.work_outline_rounded),
-  MenCategory(name: 'Formal Shirts', icon: Icons.ios_share_rounded),
-  MenCategory(name: 'Formal Pants', icon: Icons.swap_vert_rounded),
-  MenCategory(name: 'Embroidery', icon: Icons.auto_awesome_rounded),
+const List<TabCategory> menCategories = [
+  TabCategory(name: 'Ethnics', icon: Icons.dry_cleaning_rounded),
+  TabCategory(name: 'Sherwanis', icon: Icons.accessibility_new_rounded),
+  TabCategory(name: 'Blazers', icon: Icons.checkroom_rounded),
+  TabCategory(name: 'Suits', icon: Icons.work_outline_rounded),
+  TabCategory(name: 'Formal Shirts', icon: Icons.ios_share_rounded),
+  TabCategory(name: 'Formal Pants', icon: Icons.swap_vert_rounded),
+  TabCategory(name: 'Embroidery', icon: Icons.auto_awesome_rounded),
 ];
