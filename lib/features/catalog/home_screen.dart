@@ -37,13 +37,20 @@ class _HomeScreenState extends State<HomeScreen>
   final Map<String, List<SubCategory>> _subCatsByTop = {};
   final Map<String, _LoadState> _subCatStateByTop = {};
 
-  // Per-tab (products) state
-  final Map<String, List<Product>> _productsByTop = {};
-  final Map<String, _LoadState> _productStateByTop = {};
+  // Per-tab (products) state — cached by CACHE KEY (topCatId + optional subCatId)
+  final Map<String, List<Product>> _productsByKey = {};
+  final Map<String, _LoadState> _productStateByKey = {};
+
+  // Active subcategory per top-category tab (null = "All" in that tab)
+  final Map<String, String?> _activeSubByTop = {};
 
   TabController? _tabController;
   int _activeIndex = 0;
   bool _userTappedTab = false;
+
+  // Monotonic request counter to prevent stale responses from overwriting
+  // newer state when user switches tabs fast.
+  int _requestSeq = 0;
 
   @override
   void initState() {
@@ -97,14 +104,27 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  /// Build cache key for products: either "topId" or "topId|subId".
+  String _productKey(String topCategoryId, {String? subCategoryId}) =>
+      subCategoryId == null ? topCategoryId : '$topCategoryId|$subCategoryId';
+
   void _onTabSelected(int index) {
+    final cat = _topCategories[index];
+    final activeSubForNewTab = _activeSubByTop[cat.id]; // restore last sub
     setState(() {
       _activeIndex = index;
       _userTappedTab = true;
     });
-    final cat = _topCategories[index];
     _ensureSubCategoriesLoaded(cat.id);
-    _ensureProductsLoaded(cat.id);
+    _ensureProductsLoaded(cat.id, subCategoryId: activeSubForNewTab);
+  }
+
+  void _onSubCategoryTapped(String topCategoryId, SubCategory sub) {
+    final current = _activeSubByTop[topCategoryId];
+    // Toggle: tap same sub again deselects (shows all in top category)
+    final next = current == sub.id ? null : sub.id;
+    setState(() => _activeSubByTop[topCategoryId] = next);
+    _ensureProductsLoaded(topCategoryId, subCategoryId: next);
   }
 
   Future<void> _ensureSubCategoriesLoaded(String categoryId) async {
@@ -128,24 +148,40 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  Future<void> _ensureProductsLoaded(String categoryId) async {
-    if (_productsByTop.containsKey(categoryId) &&
-        _productStateByTop[categoryId] == _LoadState.data) {
+  Future<void> _ensureProductsLoaded(
+    String topCategoryId, {
+    String? subCategoryId,
+  }) async {
+    final key = _productKey(topCategoryId, subCategoryId: subCategoryId);
+
+    if (_productsByKey.containsKey(key) &&
+        _productStateByKey[key] == _LoadState.data) {
       return;
     }
+
+    // Bump request sequence: any response from a PREVIOUS fetch is ignored.
+    final seq = ++_requestSeq;
+
     setState(() {
-      _productStateByTop[categoryId] = _LoadState.loading;
+      _productStateByKey[key] = _LoadState.loading;
+      // Don't touch other keys — per-cache-key isolation.
     });
+
     try {
-      final products = await _repo.getProductsByTopCategory(categoryId);
-      if (!mounted) return;
+      final products = subCategoryId == null
+          ? await _repo.getProductsByTopCategory(topCategoryId)
+          : await _repo.getProductsBySubCategory(subCategoryId);
+
+      // Race guard: drop response if user switched tabs / subcategories in the meantime
+      if (!mounted || seq != _requestSeq) return;
+
       setState(() {
-        _productsByTop[categoryId] = products;
-        _productStateByTop[categoryId] = _LoadState.data;
+        _productsByKey[key] = products;
+        _productStateByKey[key] = _LoadState.data;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _productStateByTop[categoryId] = _LoadState.error);
+      setState(() => _productStateByKey[key] = _LoadState.error);
     }
   }
 
@@ -155,11 +191,15 @@ class _HomeScreenState extends State<HomeScreen>
       await _loadTopCategories();
       return;
     }
+    final activeSub = _activeSubByTop[active.id];
+    final key = _productKey(active.id, subCategoryId: activeSub);
+
     _subCatsByTop.remove(active.id);
-    _productsByTop.remove(active.id);
+    _productsByKey.remove(key);
+    _productStateByKey.remove(key);
     await Future.wait([
       _ensureSubCategoriesLoaded(active.id),
-      _ensureProductsLoaded(active.id),
+      _ensureProductsLoaded(active.id, subCategoryId: activeSub),
     ]);
   }
 
@@ -188,10 +228,13 @@ class _HomeScreenState extends State<HomeScreen>
     }
 
     final active = _activeCategory!;
+    final activeSub = _activeSubByTop[active.id];
+    final productKey = _productKey(active.id, subCategoryId: activeSub);
+
     final subState = _subCatStateByTop[active.id];
-    final prodState = _productStateByTop[active.id];
+    final prodState = _productStateByKey[productKey];
     final subs = _subCatsByTop[active.id] ?? [];
-    final products = _productsByTop[active.id] ?? [];
+    final products = _productsByKey[productKey] ?? [];
 
     return RefreshIndicator(
       onRefresh: _refresh,
@@ -276,7 +319,8 @@ class _HomeScreenState extends State<HomeScreen>
     }
     return SubCategoryRow(
       subCategories: subs,
-      onTap: (cat) => context.push('/catalog'),
+      selectedId: _activeSubByTop[active.id],
+      onTap: (cat) => _onSubCategoryTapped(active.id, cat),
     );
   }
 
@@ -291,7 +335,10 @@ class _HomeScreenState extends State<HomeScreen>
           height: 280,
           child: ErrorRetry(
             message: 'Could not load products.',
-            onRetry: () => _ensureProductsLoaded(active.id),
+            onRetry: () => _ensureProductsLoaded(
+              active.id,
+              subCategoryId: _activeSubByTop[active.id],
+            ),
           ),
         ),
       );
