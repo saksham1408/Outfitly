@@ -11,6 +11,7 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
   final VoidCallback onNotificationTap;
   final VoidCallback onProfileTap;
   final ValueChanged<int>? onTabTap;
+  final List<String> tabLabels;
 
   HomeStickyHeader({
     required this.tabController,
@@ -18,6 +19,7 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
     required this.onNotificationTap,
     required this.onProfileTap,
     this.onTabTap,
+    this.tabLabels = const ['MEN', 'WOMEN', 'KIDS'],
   });
 
   // Heights per row
@@ -240,11 +242,7 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
               indicatorSize: TabBarIndicatorSize.tab,
               splashFactory: NoSplash.splashFactory,
               overlayColor: WidgetStateProperty.all(Colors.transparent),
-              tabs: const [
-                Tab(text: 'MEN'),
-                Tab(text: 'WOMEN'),
-                Tab(text: 'KIDS'),
-              ],
+              tabs: tabLabels.map((l) => Tab(text: l.toUpperCase())).toList(),
             ),
           ),
         ],
