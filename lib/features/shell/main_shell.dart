@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/theme.dart';
 import '../catalog/home_screen.dart';
 import '../lookbook/screens/lookbook_screen.dart';
-import '../search/screens/search_screen.dart';
 import '../tracking/screens/orders_screen.dart';
 
 class MainShell extends StatefulWidget {
@@ -22,7 +21,6 @@ class _MainShellState extends State<MainShell> {
   final _screens = const [
     HomeScreen(),
     LookbookScreen(),
-    SearchScreen(),
     OrdersScreen(),
   ];
 
@@ -58,8 +56,7 @@ class _MainShellState extends State<MainShell> {
               children: [
                 _navItem(0, Icons.home_outlined, Icons.home_rounded, 'Home'),
                 _navItem(1, Icons.auto_stories_outlined, Icons.auto_stories_rounded, 'Lookbook'),
-                _navItem(2, Icons.search_rounded, Icons.search_rounded, 'Search'),
-                _navItem(3, Icons.local_shipping_outlined, Icons.local_shipping_rounded, 'Orders'),
+                _navItem(2, Icons.local_shipping_outlined, Icons.local_shipping_rounded, 'Orders'),
               ],
             ),
           ),
@@ -75,7 +72,7 @@ class _MainShellState extends State<MainShell> {
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         decoration: BoxDecoration(
           color: isActive ? AppColors.primary.withAlpha(15) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
