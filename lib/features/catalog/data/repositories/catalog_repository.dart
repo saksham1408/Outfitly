@@ -42,8 +42,17 @@ class CatalogRepository {
   }
 
   /// Returns all products in a top-level category (across all its subcategories).
+  /// Uses two filters for safety: the subcategory IDs AND the gender column.
   Future<List<Product>> getProductsByTopCategory(String categoryId) async {
-    // Get subcategory IDs for this top category
+    // 1. Get the app_category name (e.g. "Men") to use as gender filter
+    final appCat = await _client
+        .from('app_categories')
+        .select('name')
+        .eq('id', categoryId)
+        .maybeSingle();
+    final genderKey = (appCat?['name'] as String?)?.toLowerCase();
+
+    // 2. Get subcategory IDs for this top category
     final subs = await _client
         .from('categories')
         .select('id')
@@ -52,13 +61,20 @@ class CatalogRepository {
     final subIds = subs.map((s) => s['id'] as String).toList();
     if (subIds.isEmpty) return [];
 
-    final data = await _client
+    // 3. Fetch products matching subcategory AND gender (belt-and-suspenders)
+    var query = _client
         .from('products')
         .select()
         .inFilter('category_id', subIds)
-        .eq('is_active', true)
-        .order('is_featured', ascending: false);
+        .eq('is_active', true);
 
+    // If we know the gender, add it as an extra filter. Products tagged 'all'
+    // also pass through so cross-gender products (if any) still appear.
+    if (genderKey != null) {
+      query = query.or('gender.eq.$genderKey,gender.eq.all');
+    }
+
+    final data = await query.order('is_featured', ascending: false);
     return data.map((e) => Product.fromJson(e)).toList();
   }
 }
