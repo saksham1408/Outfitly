@@ -7,6 +7,7 @@ class ProductModel {
   final List<String> images;
   final List<String> fabricOptions;
   final bool isFeatured;
+  final String gender; // 'all', 'men', 'women', 'kids'
 
   const ProductModel({
     required this.id,
@@ -17,6 +18,7 @@ class ProductModel {
     this.images = const [],
     this.fabricOptions = const [],
     this.isFeatured = false,
+    this.gender = 'all',
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class ProductModel {
       images: List<String>.from(json['images'] ?? []),
       fabricOptions: List<String>.from(json['fabric_options'] ?? []),
       isFeatured: json['is_featured'] as bool? ?? false,
+      gender: (json['gender'] as String?) ?? 'all',
     );
   }
 

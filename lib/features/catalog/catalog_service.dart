@@ -14,6 +14,16 @@ class CatalogService {
     return data.map((e) => CategoryModel.fromJson(e)).toList();
   }
 
+  Future<List<ProductModel>> getAllProducts() async {
+    final data = await _client
+        .from('products')
+        .select()
+        .eq('is_active', true)
+        .order('is_featured', ascending: false);
+
+    return data.map((e) => ProductModel.fromJson(e)).toList();
+  }
+
   Future<List<ProductModel>> getFeaturedProducts() async {
     final data = await _client
         .from('products')
