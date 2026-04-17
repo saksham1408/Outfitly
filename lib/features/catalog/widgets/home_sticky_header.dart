@@ -238,7 +238,6 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
               splashFactory: NoSplash.splashFactory,
               overlayColor: WidgetStateProperty.all(Colors.transparent),
               tabs: const [
-                Tab(text: 'ALL'),
                 Tab(text: 'MEN'),
                 Tab(text: 'WOMEN'),
                 Tab(text: 'KIDS'),
