@@ -4,10 +4,12 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/theme.dart';
 import 'catalog_service.dart';
+import 'data/men_categories.dart';
+import 'data/women_categories.dart';
 import 'models/product_model.dart';
 import 'widgets/home_sticky_header.dart';
-import 'widgets/men_category_row.dart';
 import 'widgets/product_card.dart';
+import 'widgets/tab_category_row.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -95,11 +97,21 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                     ),
 
-                    // ── MEN Categories (shown ONLY on MEN tab) ──
+                    // ── Gender-specific Category Row (MEN / WOMEN) ──
                     if (_activeGender == 'men') ...[
                       const SliverToBoxAdapter(child: SizedBox(height: 16)),
                       SliverToBoxAdapter(
-                        child: MenCategoryRow(
+                        child: TabCategoryRow(
+                          categories: menCategories,
+                          onCategoryTap: (cat) => context.push('/catalog'),
+                        ),
+                      ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                    ] else if (_activeGender == 'women') ...[
+                      const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                      SliverToBoxAdapter(
+                        child: TabCategoryRow(
+                          categories: womenCategories,
                           onCategoryTap: (cat) => context.push('/catalog'),
                         ),
                       ),

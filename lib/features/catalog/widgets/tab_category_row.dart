@@ -2,13 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/theme.dart';
-import '../data/men_categories.dart';
+import '../data/tab_category.dart';
 
-/// Horizontal scrollable category row shown exclusively on the MEN tab.
-class MenCategoryRow extends StatelessWidget {
-  final ValueChanged<MenCategory>? onCategoryTap;
+/// Reusable horizontal category row used by MEN and WOMEN tabs.
+class TabCategoryRow extends StatelessWidget {
+  final List<TabCategory> categories;
+  final ValueChanged<TabCategory>? onCategoryTap;
 
-  const MenCategoryRow({super.key, this.onCategoryTap});
+  const TabCategoryRow({
+    super.key,
+    required this.categories,
+    this.onCategoryTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -17,11 +22,11 @@ class MenCategoryRow extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: menCategories.length,
+        itemCount: categories.length,
         separatorBuilder: (_, __) => const SizedBox(width: 14),
         itemBuilder: (context, index) {
-          final cat = menCategories[index];
-          return _MenCategoryBubble(
+          final cat = categories[index];
+          return _CategoryBubble(
             category: cat,
             onTap: () => onCategoryTap?.call(cat),
           );
@@ -31,11 +36,11 @@ class MenCategoryRow extends StatelessWidget {
   }
 }
 
-class _MenCategoryBubble extends StatelessWidget {
-  final MenCategory category;
+class _CategoryBubble extends StatelessWidget {
+  final TabCategory category;
   final VoidCallback onTap;
 
-  const _MenCategoryBubble({
+  const _CategoryBubble({
     required this.category,
     required this.onTap,
   });
