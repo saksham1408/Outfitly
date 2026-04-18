@@ -19,8 +19,10 @@ import '../../features/checkout/cart_screen.dart';
 import '../../features/checkout/checkout_screen.dart';
 import '../../features/checkout/order_success_screen.dart';
 import '../../features/tracking/screens/order_tracking_screen.dart';
-import '../../features/lookbook/screens/lookbook_screen.dart';
-import '../../features/lookbook/screens/lookbook_detail_screen.dart';
+// Lookbook tab replaced by Outfitly AI — imports removed.
+// import '../../features/lookbook/screens/lookbook_screen.dart';
+// import '../../features/lookbook/screens/lookbook_detail_screen.dart';
+import '../../features/outfitly_ai/presentation/outfitly_ai_screen.dart';
 import '../../features/shell/main_shell.dart';
 import '../../features/profile/screens/profile_screen.dart';
 import '../../features/search/screens/search_screen.dart';
@@ -158,19 +160,25 @@ abstract final class AppRouter {
         ),
       ),
 
-      // ── Lookbook ──
+      // ── Outfitly AI (replaces Lookbook tab) ──
       GoRoute(
-        path: '/lookbook',
-        name: 'lookbook',
-        builder: (context, state) => const LookbookScreen(),
+        path: '/outfitly-ai',
+        name: 'outfitlyAi',
+        builder: (context, state) => const OutfitlyAiScreen(),
       ),
-      GoRoute(
-        path: '/lookbook/:id',
-        name: 'lookbookDetail',
-        builder: (context, state) => LookbookDetailScreen(
-          itemId: state.pathParameters['id']!,
-        ),
-      ),
+      // Lookbook routes removed — tab replaced by Outfitly AI.
+      // GoRoute(
+      //   path: '/lookbook',
+      //   name: 'lookbook',
+      //   builder: (context, state) => const LookbookScreen(),
+      // ),
+      // GoRoute(
+      //   path: '/lookbook/:id',
+      //   name: 'lookbookDetail',
+      //   builder: (context, state) => LookbookDetailScreen(
+      //     itemId: state.pathParameters['id']!,
+      //   ),
+      // ),
 
       // ── Checkout ──
       GoRoute(
