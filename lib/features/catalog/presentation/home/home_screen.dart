@@ -2,21 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../core/theme/theme.dart';
-import 'data/repositories/catalog_repository.dart';
-import 'domain/models/app_category.dart';
-import 'domain/models/product.dart';
-import 'domain/models/sub_category.dart';
-import 'presentation/widgets/category_row_shimmer.dart';
-import 'presentation/widgets/dynamic_product_card.dart';
-import 'presentation/widgets/error_retry.dart';
-import 'presentation/widgets/product_grid_shimmer.dart';
-import 'presentation/widgets/sub_category_row.dart';
+import '../../../../core/theme/theme.dart';
+import '../../data/repositories/catalog_repository.dart';
+import '../../domain/models/app_category.dart';
+import '../../domain/models/sub_category.dart';
+import '../widgets/category_row_shimmer.dart';
+import '../widgets/error_retry.dart';
+import '../widgets/sub_category_row.dart';
 import 'widgets/home_sticky_header.dart';
 
 /// Screen states: Loading → Data / Error.
 enum _LoadState { loading, data, error }
 
+/// The Home screen shows only:
+///   • Top tabs (MEN / WOMEN / KIDS)
+///   • Horizontal list of subcategory circles
+///   • Hero banner + Lookbook CTA
+///
+/// Tapping a subcategory pushes the user into a dedicated PLP
+/// (`SubcategoryScreen`) via `/subcategory/:id`. The product grid itself
+/// lives on that dedicated screen, not here.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -33,24 +38,13 @@ class _HomeScreenState extends State<HomeScreen>
   _LoadState _topCategoryState = _LoadState.loading;
   String? _topCategoryError;
 
-  // Per-tab (subcategory) state
+  // Per-tab subcategory state
   final Map<String, List<SubCategory>> _subCatsByTop = {};
   final Map<String, _LoadState> _subCatStateByTop = {};
-
-  // Per-tab (products) state — cached by CACHE KEY (topCatId + optional subCatId)
-  final Map<String, List<Product>> _productsByKey = {};
-  final Map<String, _LoadState> _productStateByKey = {};
-
-  // Active subcategory per top-category tab (null = "All" in that tab)
-  final Map<String, String?> _activeSubByTop = {};
 
   TabController? _tabController;
   int _activeIndex = 0;
   bool _userTappedTab = false;
-
-  // Monotonic request counter to prevent stale responses from overwriting
-  // newer state when user switches tabs fast.
-  int _requestSeq = 0;
 
   @override
   void initState() {
@@ -77,7 +71,6 @@ class _HomeScreenState extends State<HomeScreen>
       final cats = await _repo.getTopCategories();
       if (!mounted) return;
 
-      // Rebuild TabController for the actual tab count
       _tabController?.dispose();
       _tabController = TabController(length: cats.length, vsync: this);
       _tabController!.addListener(() {
@@ -93,7 +86,6 @@ class _HomeScreenState extends State<HomeScreen>
 
       if (cats.isNotEmpty) {
         _ensureSubCategoriesLoaded(cats.first.id);
-        _ensureProductsLoaded(cats.first.id);
       }
     } catch (e) {
       if (!mounted) return;
@@ -104,27 +96,20 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  /// Build cache key for products: either "topId" or "topId|subId".
-  String _productKey(String topCategoryId, {String? subCategoryId}) =>
-      subCategoryId == null ? topCategoryId : '$topCategoryId|$subCategoryId';
-
   void _onTabSelected(int index) {
     final cat = _topCategories[index];
-    final activeSubForNewTab = _activeSubByTop[cat.id]; // restore last sub
     setState(() {
       _activeIndex = index;
       _userTappedTab = true;
     });
     _ensureSubCategoriesLoaded(cat.id);
-    _ensureProductsLoaded(cat.id, subCategoryId: activeSubForNewTab);
   }
 
-  void _onSubCategoryTapped(String topCategoryId, SubCategory sub) {
-    final current = _activeSubByTop[topCategoryId];
-    // Toggle: tap same sub again deselects (shows all in top category)
-    final next = current == sub.id ? null : sub.id;
-    setState(() => _activeSubByTop[topCategoryId] = next);
-    _ensureProductsLoaded(topCategoryId, subCategoryId: next);
+  /// Push the dedicated PLP for the tapped subcategory.
+  /// The subcategory name is passed via `extra` so the new screen can show
+  /// it in the AppBar without an extra network round-trip.
+  void _onSubCategoryTapped(SubCategory sub) {
+    context.push('/subcategory/${sub.id}', extra: sub.name);
   }
 
   Future<void> _ensureSubCategoriesLoaded(String categoryId) async {
@@ -148,59 +133,14 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  Future<void> _ensureProductsLoaded(
-    String topCategoryId, {
-    String? subCategoryId,
-  }) async {
-    final key = _productKey(topCategoryId, subCategoryId: subCategoryId);
-
-    if (_productsByKey.containsKey(key) &&
-        _productStateByKey[key] == _LoadState.data) {
-      return;
-    }
-
-    // Bump request sequence: any response from a PREVIOUS fetch is ignored.
-    final seq = ++_requestSeq;
-
-    setState(() {
-      _productStateByKey[key] = _LoadState.loading;
-      // Don't touch other keys — per-cache-key isolation.
-    });
-
-    try {
-      final products = subCategoryId == null
-          ? await _repo.getProductsByTopCategory(topCategoryId)
-          : await _repo.getProductsBySubCategory(subCategoryId);
-
-      // Race guard: drop response if user switched tabs / subcategories in the meantime
-      if (!mounted || seq != _requestSeq) return;
-
-      setState(() {
-        _productsByKey[key] = products;
-        _productStateByKey[key] = _LoadState.data;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _productStateByKey[key] = _LoadState.error);
-    }
-  }
-
   Future<void> _refresh() async {
     final active = _activeCategory;
     if (active == null) {
       await _loadTopCategories();
       return;
     }
-    final activeSub = _activeSubByTop[active.id];
-    final key = _productKey(active.id, subCategoryId: activeSub);
-
     _subCatsByTop.remove(active.id);
-    _productsByKey.remove(key);
-    _productStateByKey.remove(key);
-    await Future.wait([
-      _ensureSubCategoriesLoaded(active.id),
-      _ensureProductsLoaded(active.id, subCategoryId: activeSub),
-    ]);
+    await _ensureSubCategoriesLoaded(active.id);
   }
 
   @override
@@ -215,33 +155,27 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildBody() {
-    // Top categories: loading
     if (_topCategoryState == _LoadState.loading) {
       return const Center(child: CircularProgressIndicator());
     }
-    // Top categories: error
     if (_topCategoryState == _LoadState.error || _topCategories.isEmpty) {
       return ErrorRetry(
-        message: _topCategoryError ?? 'Failed to load catalog. Please try again.',
+        message:
+            _topCategoryError ?? 'Failed to load catalog. Please try again.',
         onRetry: _loadTopCategories,
       );
     }
 
     final active = _activeCategory!;
-    final activeSub = _activeSubByTop[active.id];
-    final productKey = _productKey(active.id, subCategoryId: activeSub);
-
     final subState = _subCatStateByTop[active.id];
-    final prodState = _productStateByKey[productKey];
     final subs = _subCatsByTop[active.id] ?? [];
-    final products = _productsByKey[productKey] ?? [];
 
     return RefreshIndicator(
       onRefresh: _refresh,
       color: AppColors.accent,
       child: CustomScrollView(
         slivers: [
-          // Sticky header
+          // Sticky header (top bar + gender tabs)
           SliverPersistentHeader(
             pinned: true,
             delegate: HomeStickyHeader(
@@ -254,7 +188,7 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           ),
 
-          // Subcategory row (after user taps a tab)
+          // Subcategory row — shown once user taps a tab
           if (_userTappedTab) ...[
             const SliverToBoxAdapter(child: SizedBox(height: 16)),
             SliverToBoxAdapter(
@@ -270,15 +204,6 @@ class _HomeScreenState extends State<HomeScreen>
 
           // Lookbook CTA
           SliverToBoxAdapter(child: _buildLookbookCta()),
-          const SliverToBoxAdapter(child: SizedBox(height: 32)),
-
-          // Section title
-          SliverToBoxAdapter(child: _buildSectionTitle(active, products.length)),
-          const SliverToBoxAdapter(child: SizedBox(height: 12)),
-
-          // Product grid / loading / error
-          _buildProductSliver(prodState, products, active),
-
           const SliverToBoxAdapter(child: SizedBox(height: 80)),
         ],
       ),
@@ -319,76 +244,9 @@ class _HomeScreenState extends State<HomeScreen>
     }
     return SubCategoryRow(
       subCategories: subs,
-      selectedId: _activeSubByTop[active.id],
-      onTap: (cat) => _onSubCategoryTapped(active.id, cat),
-    );
-  }
-
-  Widget _buildProductSliver(
-      _LoadState? state, List<Product> products, AppCategory active) {
-    if (state == _LoadState.loading) {
-      return const SliverToBoxAdapter(child: ProductGridShimmer());
-    }
-    if (state == _LoadState.error) {
-      return SliverToBoxAdapter(
-        child: SizedBox(
-          height: 280,
-          child: ErrorRetry(
-            message: 'Could not load products.',
-            onRetry: () => _ensureProductsLoaded(
-              active.id,
-              subCategoryId: _activeSubByTop[active.id],
-            ),
-          ),
-        ),
-      );
-    }
-    if (products.isEmpty) {
-      return SliverToBoxAdapter(
-        child: Padding(
-          padding: const EdgeInsets.all(40),
-          child: Center(
-            child: Column(
-              children: [
-                Icon(
-                  Icons.inventory_2_outlined,
-                  size: 48,
-                  color: AppColors.textTertiary.withAlpha(80),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'No products yet — check back soon!',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    color: AppColors.textTertiary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-    return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      sliver: SliverGrid(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: 14,
-          crossAxisSpacing: 14,
-          childAspectRatio: 0.65,
-        ),
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final p = products[index];
-            return DynamicProductCard(
-              product: p,
-              onTap: () => context.push('/product/${p.id}'),
-            );
-          },
-          childCount: products.length,
-        ),
-      ),
+      // No persistent selection on Home — each tap navigates away to the PLP.
+      selectedId: null,
+      onTap: _onSubCategoryTapped,
     );
   }
 
@@ -494,53 +352,6 @@ class _HomeScreenState extends State<HomeScreen>
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(AppCategory active, int count) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                'For ${active.name}',
-                style: GoogleFonts.newsreader(
-                  fontSize: 22,
-                  fontStyle: FontStyle.italic,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  '$count',
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textTertiary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          TextButton(
-            onPressed: () => context.push('/catalog'),
-            child: Text(
-              'See all',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.accent,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

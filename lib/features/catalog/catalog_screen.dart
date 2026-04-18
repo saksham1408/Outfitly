@@ -6,10 +6,10 @@ import 'catalog_service.dart';
 import 'models/category_model.dart';
 import 'models/product_filters.dart';
 import 'models/product_model.dart';
-import 'widgets/filter_bottom_sheet.dart';
+import 'presentation/subcategory_plp/widgets/filter_bottom_sheet.dart';
+import 'presentation/subcategory_plp/widgets/sort_bottom_sheet.dart';
+import 'presentation/subcategory_plp/widgets/sort_filter_bar.dart';
 import 'widgets/product_card.dart';
-import 'widgets/sort_bottom_sheet.dart';
-import 'widgets/sort_filter_bar.dart';
 
 class CatalogScreen extends StatefulWidget {
   const CatalogScreen({super.key});

@@ -7,6 +7,7 @@ import '../../features/auth/screens/otp_verification_screen.dart';
 import '../../features/auth/screens/forgot_password_screen.dart';
 import '../../features/onboarding/style_quiz_screen.dart';
 import '../../features/catalog/catalog_screen.dart';
+import '../../features/catalog/presentation/subcategory_plp/subcategory_screen.dart';
 import '../../features/catalog/product_detail_screen.dart';
 import '../../features/design_studio/design_studio_screen.dart';
 import '../../features/checkout/models/order_payload.dart';
@@ -100,6 +101,14 @@ abstract final class AppRouter {
         path: '/catalog',
         name: 'catalog',
         builder: (context, state) => const CatalogScreen(),
+      ),
+      GoRoute(
+        path: '/subcategory/:id',
+        name: 'subcategory',
+        builder: (context, state) => SubcategoryScreen(
+          subcategoryId: state.pathParameters['id']!,
+          subcategoryName: state.extra is String ? state.extra as String : null,
+        ),
       ),
       GoRoute(
         path: '/product/:id',

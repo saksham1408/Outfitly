@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../core/theme/theme.dart';
+import '../../../../../core/theme/theme.dart';
 
 /// Myntra-style sticky header for the home feed.
 /// Contains: Top row (location + icons) + Search bar + Gender tabs.

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/theme.dart';
-import '../catalog/home_screen.dart';
+import '../catalog/presentation/home/home_screen.dart';
 import '../lookbook/screens/lookbook_screen.dart';
 import '../tracking/screens/orders_screen.dart';
 
