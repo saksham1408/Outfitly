@@ -9,6 +9,7 @@ import '../../features/onboarding/style_quiz_screen.dart';
 import '../../features/catalog/catalog_screen.dart';
 import '../../features/catalog/presentation/subcategory_plp/subcategory_screen.dart';
 import '../../features/catalog/product_detail_screen.dart';
+import '../../features/design_studio/presentation/custom_embroidery_request_screen.dart';
 import '../../features/design_studio/presentation/design_studio_screen.dart';
 import '../../features/checkout/models/order_payload.dart';
 import '../../features/measurements/presentation/measurement_decision_screen.dart';
@@ -125,6 +126,13 @@ abstract final class AppRouter {
             ),
           ),
         ],
+      ),
+
+      // ── Custom Embroidery Request (bespoke) ──
+      GoRoute(
+        path: '/embroidery/custom-request',
+        name: 'customEmbroideryRequest',
+        builder: (context, state) => const CustomEmbroideryRequestScreen(),
       ),
 
       // ── Measurements ──
