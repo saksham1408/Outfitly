@@ -11,9 +11,9 @@ import '../../features/catalog/presentation/subcategory_plp/subcategory_screen.d
 import '../../features/catalog/product_detail_screen.dart';
 import '../../features/design_studio/design_studio_screen.dart';
 import '../../features/checkout/models/order_payload.dart';
-import '../../features/measurements/measurement_decision_screen.dart';
-import '../../features/measurements/manual_measurement_screen.dart';
-import '../../features/measurements/book_tailor_screen.dart';
+import '../../features/measurements/presentation/measurement_decision_screen.dart';
+import '../../features/measurements/presentation/manual_measurement_screen.dart';
+import '../../features/measurements/presentation/book_tailor_screen.dart';
 import '../../features/checkout/cart_screen.dart';
 import '../../features/checkout/checkout_screen.dart';
 import '../../features/checkout/order_success_screen.dart';

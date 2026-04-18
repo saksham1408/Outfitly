@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/theme.dart';
+import '../checkout/models/order_payload.dart';
 import 'catalog_service.dart';
 import 'models/product_model.dart';
 
@@ -136,9 +137,22 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           child: SizedBox(
             height: 52,
             child: ElevatedButton(
-              onPressed: () => context.push(
-                '/product/${widget.productId}/design-studio',
-              ),
+              onPressed: () {
+                // Build the OrderPayload from the current product so the
+                // measurement flow knows what the user is buying. The same
+                // payload is mutated downstream (measurements / tailor
+                // booking) and handed to the Cart screen.
+                final payload = OrderPayload(
+                  productName: product.name,
+                  price: product.basePrice,
+                  fabric: product.fabricOptions.isNotEmpty
+                      ? product.fabricOptions.first
+                      : null,
+                  imageUrl:
+                      product.images.isNotEmpty ? product.images.first : null,
+                );
+                context.push('/measurements/decision', extra: payload);
+              },
               child: const Text('Customize This'),
             ),
           ),
