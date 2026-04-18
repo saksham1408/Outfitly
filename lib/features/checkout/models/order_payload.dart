@@ -1,7 +1,7 @@
 /// Carries product + measurement + tailor data through the ordering flow.
-/// Built up across screens: Lookbook → Measurements → Checkout.
+/// Built up across screens: Catalog → Measurements → Checkout.
 class OrderPayload {
-  // Product info (set from Lookbook/Catalog)
+  // Product info (set from Catalog)
   final String productName;
   final String? fabric;
   final double price;

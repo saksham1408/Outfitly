@@ -17,7 +17,7 @@ enum _LoadState { loading, data, error }
 /// The Home screen shows only:
 ///   • Top tabs (MEN / WOMEN / KIDS)
 ///   • Horizontal list of subcategory circles
-///   • Hero banner + Lookbook CTA
+///   • Hero banner
 ///
 /// Tapping a subcategory pushes the user into a dedicated PLP
 /// (`SubcategoryScreen`) via `/subcategory/:id`. The product grid itself
@@ -200,10 +200,6 @@ class _HomeScreenState extends State<HomeScreen>
 
           // Hero banner
           SliverToBoxAdapter(child: _buildHeroBanner()),
-          const SliverToBoxAdapter(child: SizedBox(height: 28)),
-
-          // Lookbook CTA
-          SliverToBoxAdapter(child: _buildLookbookCta()),
           const SliverToBoxAdapter(child: SizedBox(height: 80)),
         ],
       ),
@@ -287,72 +283,4 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildLookbookCta() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: GestureDetector(
-        onTap: () => context.push('/lookbook'),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(16),
-            image: DecorationImage(
-              image: const NetworkImage(
-                'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=800',
-              ),
-              fit: BoxFit.cover,
-              colorFilter: ColorFilter.mode(
-                AppColors.primary.withAlpha(180),
-                BlendMode.darken,
-              ),
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'LOOKBOOK',
-                      style: GoogleFonts.manrope(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 3,
-                        color: AppColors.accentContainer,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Explore Our\nFabric Collection',
-                      style: GoogleFonts.newsreader(
-                        fontSize: 22,
-                        fontStyle: FontStyle.italic,
-                        color: Colors.white,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Handpicked silks, linens & more',
-                      style: GoogleFonts.manrope(
-                        fontSize: 12,
-                        color: Colors.white.withAlpha(180),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.arrow_forward_rounded,
-                color: Colors.white,
-                size: 24,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
