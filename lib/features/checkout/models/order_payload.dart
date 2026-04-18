@@ -19,6 +19,12 @@ class OrderPayload {
   String? tailorDate;
   String? tailorTimeSlot;
 
+  /// Public URL of a user-uploaded reference image. Populated from the
+  /// Design Studio when a customer attaches a custom design to an
+  /// Embroidery-subcategory product. Surfaces in Directus admin so the
+  /// atelier can reproduce the design.
+  String? customEmbroideryUrl;
+
   OrderPayload({
     required this.productName,
     required this.price,
@@ -30,6 +36,7 @@ class OrderPayload {
     this.tailorPincode,
     this.tailorDate,
     this.tailorTimeSlot,
+    this.customEmbroideryUrl,
   });
 
   Map<String, dynamic> toOrderJson(String userId) => {
@@ -40,6 +47,8 @@ class OrderPayload {
         'status': 'pending_admin_approval',
         'estimated_delivery':
             DateTime.now().add(const Duration(days: 14)).toIso8601String().split('T')[0],
+        if (customEmbroideryUrl != null)
+          'custom_embroidery_url': customEmbroideryUrl,
         'design_choices': {
           'measurement_method': measurementMethod,
           if (measurements != null) 'measurements': measurements,
@@ -47,6 +56,8 @@ class OrderPayload {
           if (tailorPincode != null) 'tailor_pincode': tailorPincode,
           if (tailorDate != null) 'tailor_date': tailorDate,
           if (tailorTimeSlot != null) 'tailor_time_slot': tailorTimeSlot,
+          if (customEmbroideryUrl != null)
+            'custom_embroidery_url': customEmbroideryUrl,
         },
         'tracking_note': measurementMethod == 'tailor'
             ? 'Waiting for admin approval. A tailor will visit on $tailorDate.'

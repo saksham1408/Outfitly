@@ -45,9 +45,11 @@ class CatalogService {
   }
 
   Future<ProductModel?> getProduct(String id) async {
+    // Join the parent category so the PDP can route Embroidery products
+    // through the Design Studio (which shows the custom upload step).
     final data = await _client
         .from('products')
-        .select()
+        .select('*, categories(slug, name)')
         .eq('id', id)
         .maybeSingle();
 

@@ -9,6 +9,11 @@ class DesignSelection {
   String? monogramId;
   String? monogramText;
 
+  /// Public URL of a user-uploaded reference image. Only used for
+  /// products in the Embroidery subcategory, where the customer can
+  /// attach a design they want stitched onto the garment.
+  String? customEmbroideryUrl;
+
   DesignSelection({required this.productId});
 
   Map<String, dynamic> toJson() => {
@@ -20,6 +25,8 @@ class DesignSelection {
         'fit': fitId,
         'monogram': monogramId,
         'monogram_text': monogramText,
+        if (customEmbroideryUrl != null)
+          'custom_embroidery_url': customEmbroideryUrl,
       };
 
   bool get isComplete =>
