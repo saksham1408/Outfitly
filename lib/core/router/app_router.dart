@@ -23,6 +23,7 @@ import '../../features/outfitly_ai/presentation/outfitly_ai_screen.dart';
 import '../../features/shell/main_shell.dart';
 import '../../features/profile/screens/profile_screen.dart';
 import '../../features/search/screens/search_screen.dart';
+import '../../features/wishlist/screens/wishlist_screen.dart';
 
 /// Central route configuration for the app.
 abstract final class AppRouter {
@@ -162,6 +163,13 @@ abstract final class AppRouter {
         path: '/outfitly-ai',
         name: 'outfitlyAi',
         builder: (context, state) => const OutfitlyAiScreen(),
+      ),
+
+      // ── Wishlist ──
+      GoRoute(
+        path: '/wishlist',
+        name: 'wishlist',
+        builder: (context, state) => const WishlistScreen(),
       ),
 
       // ── Checkout ──

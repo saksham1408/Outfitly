@@ -184,6 +184,8 @@ class _HomeScreenState extends State<HomeScreen>
               onSearchTap: () => context.push('/search'),
               onNotificationTap: () {},
               onProfileTap: () => context.push('/profile'),
+              onWishlistTap: () => context.push('/wishlist'),
+              onCartTap: () => context.push('/cart'),
               onTabTap: _onTabSelected,
             ),
           ),
