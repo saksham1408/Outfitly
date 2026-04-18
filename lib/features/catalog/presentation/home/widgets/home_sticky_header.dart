@@ -10,6 +10,8 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
   final VoidCallback onSearchTap;
   final VoidCallback onNotificationTap;
   final VoidCallback onProfileTap;
+  final VoidCallback onWishlistTap;
+  final VoidCallback onCartTap;
   final ValueChanged<int>? onTabTap;
   final List<String> tabLabels;
 
@@ -18,6 +20,8 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
     required this.onSearchTap,
     required this.onNotificationTap,
     required this.onProfileTap,
+    required this.onWishlistTap,
+    required this.onCartTap,
     this.onTabTap,
     this.tabLabels = const ['MEN', 'WOMEN', 'KIDS'],
   });
@@ -70,6 +74,19 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
                   ),
                   child: Row(
                     children: [
+                      // Wishlist + Bag (upper-left actions)
+                      _iconWithBadge(
+                        icon: Icons.favorite_border,
+                        badge: '5',
+                        onTap: onWishlistTap,
+                      ),
+                      _iconWithBadge(
+                        icon: Icons.shopping_bag_outlined,
+                        badge: '2',
+                        onTap: onCartTap,
+                      ),
+                      const SizedBox(width: 16),
+
                       // Location picker
                       Expanded(
                         child: Row(
