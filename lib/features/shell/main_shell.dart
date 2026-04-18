@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/theme.dart';
 import '../catalog/presentation/home/home_screen.dart';
-import '../lookbook/screens/lookbook_screen.dart';
+import '../outfitly_ai/presentation/outfitly_ai_screen.dart';
 import '../tracking/screens/orders_screen.dart';
 
 class MainShell extends StatefulWidget {
@@ -20,7 +20,7 @@ class _MainShellState extends State<MainShell> {
 
   final _screens = const [
     HomeScreen(),
-    LookbookScreen(),
+    OutfitlyAiScreen(),
     OrdersScreen(),
   ];
 
@@ -55,7 +55,7 @@ class _MainShellState extends State<MainShell> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _navItem(0, Icons.home_outlined, Icons.home_rounded, 'Home'),
-                _navItem(1, Icons.auto_stories_outlined, Icons.auto_stories_rounded, 'Lookbook'),
+                _navItem(1, Icons.auto_awesome_outlined, Icons.auto_awesome, 'Outfitly AI'),
                 _navItem(2, Icons.local_shipping_outlined, Icons.local_shipping_rounded, 'Orders'),
               ],
             ),
