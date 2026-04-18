@@ -138,10 +138,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             height: 52,
             child: ElevatedButton(
               onPressed: () {
-                // Build the OrderPayload from the current product so the
-                // measurement flow knows what the user is buying. The same
-                // payload is mutated downstream (measurements / tailor
-                // booking) and handed to the Cart screen.
+                // Embroidery products get the full Design Studio flow so
+                // the customer can attach a custom reference image; the
+                // studio builds the OrderPayload itself when the user
+                // reaches the measurement step. Everything else goes
+                // straight to the measurement decision with a fresh
+                // OrderPayload that downstream screens mutate.
+                if (product.isEmbroidery) {
+                  context.push('/product/${product.id}/design-studio');
+                  return;
+                }
+
                 final payload = OrderPayload(
                   productName: product.name,
                   price: product.basePrice,

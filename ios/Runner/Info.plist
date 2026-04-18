@@ -50,5 +50,7 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Outfitly needs access to your photos so you can attach a reference design for custom embroidery.</string>
 </dict>
 </plist>
