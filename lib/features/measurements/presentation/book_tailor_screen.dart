@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../core/theme/theme.dart';
-import '../checkout/models/order_payload.dart';
+import '../../../core/theme/theme.dart';
+import '../../checkout/models/order_payload.dart';
 
 class BookTailorScreen extends StatefulWidget {
   final OrderPayload? payload;
