@@ -3,17 +3,10 @@ services:
     image: directus/directus:latest
     ports:
       - "8055:8055"
+    env_file:
+      - .env
     environment:
-      KEY: "***REMOVED***"
-      SECRET: "***REMOVED***"
-      ADMIN_EMAIL: "admin@outfitly.com"
-      ADMIN_PASSWORD: "***REMOVED***"
       DB_CLIENT: "pg"
-      DB_HOST: "aws-1-ap-northeast-1.pooler.supabase.com"
-      DB_PORT: "5432"
-      DB_DATABASE: "postgres"
-      DB_USER: "postgres.fnwevskhrzvqkwuhvlun"
-      DB_PASSWORD: "***REMOVED***"
       DB_SSL__REJECT_UNAUTHORIZED: "false"
       DB_SSL__CA: ""
       NODE_TLS_REJECT_UNAUTHORIZED: "0"
