@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../core/theme/theme.dart';
-import '../models/product_filters.dart';
+import '../../../../../core/theme/theme.dart';
+import '../../../models/product_filters.dart';
 
 /// Opens the full-height dual-pane Filter bottom sheet.
 /// Returns the new filter state if user taps APPLY, or null if dismissed.

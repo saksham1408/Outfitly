@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../core/theme/theme.dart';
-import '../models/product_filters.dart';
+import '../../../../../core/theme/theme.dart';
+import '../../../models/product_filters.dart';
 
 /// Opens the Sort bottom sheet. Returns the chosen [SortOption] or null.
 Future<SortOption?> showSortBottomSheet(

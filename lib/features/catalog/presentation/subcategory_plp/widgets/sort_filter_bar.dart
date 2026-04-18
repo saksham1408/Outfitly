@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../core/theme/theme.dart';
+import '../../../../../core/theme/theme.dart';
 
 /// Sticky bottom action bar with SORT + FILTER — reusable across any PLP.
 class SortFilterBar extends StatelessWidget {
