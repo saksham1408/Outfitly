@@ -52,5 +52,9 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Outfitly needs access to your photos so you can attach a reference design for custom embroidery.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Outfitly uses the camera so you can snap a reference for your custom embroidery request.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Outfitly does not record audio — this permission is required by the image picker on some devices.</string>
 </dict>
 </plist>

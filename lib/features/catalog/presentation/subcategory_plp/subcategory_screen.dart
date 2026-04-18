@@ -48,6 +48,14 @@ class _SubcategoryScreenState extends State<SubcategoryScreen> {
   // Sort + filter state — kept local to this PLP.
   final ProductFilters _filters = ProductFilters();
 
+  /// True when this PLP is rendering the Embroidery subcategory — in
+  /// that case we inject a "Design Your Own Embroidery" CTA above the
+  /// product grid that opens the bespoke request form.
+  bool get _isEmbroidery {
+    final name = widget.subcategoryName?.toLowerCase() ?? '';
+    return name.contains('embroider');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -143,6 +151,24 @@ class _SubcategoryScreenState extends State<SubcategoryScreen> {
       );
     }
     if (_products.isEmpty) {
+      // Even when the catalogue is empty, Embroidery must always show
+      // the bespoke CTA — that IS the offering for this section.
+      if (_isEmbroidery) {
+        return RefreshIndicator(
+          onRefresh: _load,
+          color: AppColors.accent,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+            children: [
+              _DesignYourOwnCard(
+                onTap: () => context.push('/embroidery/custom-request'),
+              ),
+              const SizedBox(height: 24),
+              _buildEmpty(),
+            ],
+          ),
+        );
+      }
       return _buildEmpty();
     }
 
@@ -151,6 +177,15 @@ class _SubcategoryScreenState extends State<SubcategoryScreen> {
       color: AppColors.accent,
       child: CustomScrollView(
         slivers: [
+          if (_isEmbroidery)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                child: _DesignYourOwnCard(
+                  onTap: () => context.push('/embroidery/custom-request'),
+                ),
+              ),
+            ),
           SliverToBoxAdapter(child: _buildCountRow()),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -199,6 +234,98 @@ class _SubcategoryScreenState extends State<SubcategoryScreen> {
   }
 
   Widget _buildEmpty() {
+    return _SubcategoryEmptyState();
+  }
+}
+
+/// Full-width premium CTA shown at the top of the Embroidery PLP.
+/// Tapping it opens the bespoke Custom Embroidery request form.
+class _DesignYourOwnCard extends StatelessWidget {
+  final VoidCallback onTap;
+  const _DesignYourOwnCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: LinearGradient(
+            colors: [
+              AppColors.primary,
+              AppColors.primary.withAlpha(220),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withAlpha(40),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(28),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(
+                Icons.auto_awesome_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Design Your Own Embroidery',
+                    style: GoogleFonts.newsreader(
+                      fontSize: 18,
+                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Upload your reference — we hand-stitch it on a garment of your choice.',
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      height: 1.4,
+                      color: Colors.white.withAlpha(200),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: Colors.white,
+              size: 16,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SubcategoryEmptyState extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(40),
