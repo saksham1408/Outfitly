@@ -7,8 +7,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/network/supabase_client.dart';
 import '../../../core/theme/theme.dart';
 import '../../catalog/models/product_model.dart';
-import '../../lookbook/models/lookbook_item_model.dart';
-import '../../lookbook/services/lookbook_service.dart';
 
 class SearchScreen extends StatefulWidget {
   /// When true, the back arrow is shown (screen was pushed).
@@ -23,10 +21,8 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final _searchController = TextEditingController();
   final _focusNode = FocusNode();
-  final _lookbookService = LookbookService();
 
   List<ProductModel> _products = [];
-  List<LookbookItemModel> _lookbookItems = [];
   bool _searching = false;
   bool _hasSearched = false;
   Timer? _debounce;
@@ -70,7 +66,6 @@ class _SearchScreenState extends State<SearchScreen> {
     if (query.trim().length < 2) {
       setState(() {
         _products = [];
-        _lookbookItems = [];
         _hasSearched = false;
       });
       return;
@@ -132,20 +127,9 @@ class _SearchScreenState extends State<SearchScreen> {
         debugPrint('Fabric match error: $e');
       }
 
-      // Lookbook search (client-side)
-      final allLookbook = await _lookbookService.getAllItems();
-      final lookbookMatches = allLookbook
-          .where((item) =>
-              item.name.toLowerCase().contains(lowerQuery) ||
-              (item.description?.toLowerCase().contains(lowerQuery) ?? false) ||
-              (item.fabricType?.toLowerCase().contains(lowerQuery) ?? false) ||
-              (item.category?.toLowerCase().contains(lowerQuery) ?? false))
-          .toList();
-
       if (!mounted) return;
       setState(() {
         _products = products;
-        _lookbookItems = lookbookMatches;
         _searching = false;
       });
     } catch (e) {
@@ -153,7 +137,6 @@ class _SearchScreenState extends State<SearchScreen> {
       if (mounted) {
         setState(() {
           _products = [];
-          _lookbookItems = [];
           _searching = false;
         });
       }
@@ -165,7 +148,6 @@ class _SearchScreenState extends State<SearchScreen> {
     _debounce?.cancel();
     setState(() {
       _products = [];
-      _lookbookItems = [];
       _hasSearched = false;
     });
     _focusNode.requestFocus();
@@ -321,13 +303,6 @@ class _SearchScreenState extends State<SearchScreen> {
         _sectionTitle('QUICK LINKS'),
         const SizedBox(height: 10),
         _quickLink(
-          icon: Icons.auto_stories_rounded,
-          label: 'Browse the Lookbook',
-          subtitle: 'Handpicked fabrics from India and the world',
-          onTap: () => context.push('/lookbook'),
-        ),
-        const SizedBox(height: 10),
-        _quickLink(
           icon: Icons.local_shipping_outlined,
           label: 'Track your orders',
           subtitle: 'Live stitching pipeline updates',
@@ -338,7 +313,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildResults() {
-    if (_products.isEmpty && _lookbookItems.isEmpty) {
+    if (_products.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -377,11 +352,6 @@ class _SearchScreenState extends State<SearchScreen> {
           const SizedBox(height: 8),
           ..._products.map(_productTile),
           const SizedBox(height: 24),
-        ],
-        if (_lookbookItems.isNotEmpty) ...[
-          _sectionTitle('FABRICS (${_lookbookItems.length})'),
-          const SizedBox(height: 8),
-          ..._lookbookItems.map(_lookbookTile),
         ],
         const SizedBox(height: 40),
       ],
@@ -550,59 +520,4 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _lookbookTile(LookbookItemModel item) {
-    return InkWell(
-      onTap: () => context.push('/lookbook/${item.id}'),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                image: item.imageUrl != null
-                    ? DecorationImage(
-                        image: NetworkImage(item.imageUrl!),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
-                color: AppColors.surfaceVariant,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    style: GoogleFonts.manrope(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${item.fabricType ?? ''} · ${item.formattedPrice}',
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.north_east_rounded,
-              size: 18,
-              color: AppColors.textTertiary,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
