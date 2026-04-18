@@ -74,19 +74,6 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
                   ),
                   child: Row(
                     children: [
-                      // Wishlist + Bag (upper-left actions)
-                      _iconWithBadge(
-                        icon: Icons.favorite_border,
-                        badge: '5',
-                        onTap: onWishlistTap,
-                      ),
-                      _iconWithBadge(
-                        icon: Icons.shopping_bag_outlined,
-                        badge: '2',
-                        onTap: onCartTap,
-                      ),
-                      const SizedBox(width: 16),
-
                       // Location picker
                       Expanded(
                         child: Row(
@@ -136,11 +123,21 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
                         ),
                       ),
 
-                      // Notification with badge
+                      // Right-side actions
                       _iconWithBadge(
                         icon: Icons.notifications_none_rounded,
                         badge: '3',
                         onTap: onNotificationTap,
+                      ),
+                      _iconWithBadge(
+                        icon: Icons.favorite_border,
+                        badge: '5',
+                        onTap: onWishlistTap,
+                      ),
+                      _iconWithBadge(
+                        icon: Icons.shopping_bag_outlined,
+                        badge: '2',
+                        onTap: onCartTap,
                       ),
                       const SizedBox(width: 8),
                       IconButton(
