@@ -32,10 +32,62 @@ class _WardrobeCalendarScreenState extends State<WardrobeCalendarScreen> {
   DateTime _selectedDay = DateTime.now();
   CalendarFormat _format = CalendarFormat.month;
 
+  bool _loading = true;
+  String? _loadError;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+    try {
+      await _service.fetchAll();
+    } catch (e) {
+      _loadError = 'Could not load your events. Pull to retry.';
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _openAddEvent() async {
+    final created = await context.push<DateTime>(
+      '/wardrobe/add-event',
+      extra: _selectedDay,
+    );
+    if (created != null && mounted) {
+      // Jump the grid to the newly added event so the user sees their
+      // entry rendered on the right day without hunting for it.
+      setState(() {
+        _selectedDay = DateTime(created.year, created.month, created.day);
+        _focusedDay = _selectedDay;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        onPressed: _openAddEvent,
+        icon: const Icon(Icons.add_rounded),
+        label: Text(
+          'NEW EVENT',
+          style: GoogleFonts.manrope(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.4,
+          ),
+        ),
+      ),
       body: SafeArea(
         child: ValueListenableBuilder<List<PlannerEvent>>(
           valueListenable: _service.events,
@@ -222,17 +274,51 @@ class _WardrobeCalendarScreenState extends State<WardrobeCalendarScreen> {
 
                 // ── Event details ──
                 Expanded(
-                  child: selectedEvents.isEmpty
-                      ? _EmptyDay(date: _selectedDay)
-                      : ListView.separated(
-                          padding:
-                              const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                          itemCount: selectedEvents.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 10),
-                          itemBuilder: (_, i) =>
-                              _EventCard(event: selectedEvents[i]),
-                        ),
+                  child: RefreshIndicator(
+                    onRefresh: _refresh,
+                    color: AppColors.primary,
+                    child: _loading && events.isEmpty
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: AppColors.primary,
+                            ),
+                          )
+                        : _loadError != null && events.isEmpty
+                            ? _ErrorState(
+                                message: _loadError!,
+                                onRetry: _refresh,
+                              )
+                            : selectedEvents.isEmpty
+                                ? ListView(
+                                    // Always-scrollable keeps pull-to-refresh
+                                    // responsive even on an empty day.
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(),
+                                    children: [
+                                      SizedBox(
+                                        height: MediaQuery.of(context)
+                                                .size
+                                                .height *
+                                            0.3,
+                                        child: _EmptyDay(
+                                          date: _selectedDay,
+                                          onAdd: _openAddEvent,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : ListView.separated(
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(),
+                                    padding: const EdgeInsets.fromLTRB(
+                                        16, 4, 16, 96),
+                                    itemCount: selectedEvents.length,
+                                    separatorBuilder: (_, __) =>
+                                        const SizedBox(height: 10),
+                                    itemBuilder: (_, i) =>
+                                        _EventCard(event: selectedEvents[i]),
+                                  ),
+                  ),
                 ),
               ],
             );
@@ -245,7 +331,8 @@ class _WardrobeCalendarScreenState extends State<WardrobeCalendarScreen> {
 
 class _EmptyDay extends StatelessWidget {
   final DateTime date;
-  const _EmptyDay({required this.date});
+  final VoidCallback? onAdd;
+  const _EmptyDay({required this.date, this.onAdd});
 
   @override
   Widget build(BuildContext context) {
@@ -271,7 +358,7 @@ class _EmptyDay extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Sync your calendar or browse your closet while you wait.',
+              'Tap "New event" to plan a look for this day.',
               textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
                 fontSize: 12,
@@ -279,6 +366,27 @@ class _EmptyDay extends StatelessWidget {
                 height: 1.5,
               ),
             ),
+            if (onAdd != null) ...[
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
+                onPressed: onAdd,
+                icon: const Icon(Icons.add_rounded, size: 16),
+                label: Text(
+                  'Add event',
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -290,6 +398,61 @@ class _EmptyDay extends StatelessWidget {
       'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'
     ];
     return '${d.day} ${months[d.month - 1]}';
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  const _ErrorState({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.3,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.cloud_off_rounded,
+                    size: 40,
+                    color: AppColors.textTertiary.withAlpha(120),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      color: AppColors.textTertiary,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: onRetry,
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    label: Text(
+                      'Retry',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 

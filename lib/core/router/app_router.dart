@@ -27,6 +27,7 @@ import '../../features/outfitly_ai/presentation/outfitly_ai_screen.dart';
 import '../../features/wardrobe_calendar/presentation/wardrobe_calendar_screen.dart';
 import '../../features/wardrobe_calendar/presentation/wardrobe_inventory_screen.dart';
 import '../../features/wardrobe_calendar/presentation/outfit_planner_screen.dart';
+import '../../features/wardrobe_calendar/presentation/add_event_screen.dart';
 import '../../features/wardrobe_calendar/domain/planner_event.dart';
 import '../../features/shell/main_shell.dart';
 import '../../features/profile/screens/profile_screen.dart';
@@ -245,6 +246,13 @@ abstract final class AppRouter {
         name: 'wardrobePlanner',
         builder: (context, state) => OutfitPlannerScreen(
           event: state.extra as PlannerEvent,
+        ),
+      ),
+      GoRoute(
+        path: '/wardrobe/add-event',
+        name: 'wardrobeAddEvent',
+        builder: (context, state) => AddEventScreen(
+          initialDate: state.extra is DateTime ? state.extra as DateTime : null,
         ),
       ),
 

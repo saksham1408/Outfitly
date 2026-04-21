@@ -1,3 +1,4 @@
+import '../data/wardrobe_service.dart';
 import 'wardrobe_item.dart';
 
 /// The four slots the Mix-and-Match planner can fill. An event's
@@ -36,6 +37,35 @@ class PlannedOutfit {
       accessory: clearAccessory ? null : (accessory ?? this.accessory),
     );
   }
+
+  /// Serialises as just the wardrobe-item ids. Keeps the stored jsonb
+  /// tight and lets the wardrobe catalogue be the source of truth for
+  /// item metadata (name, image, type).
+  Map<String, dynamic> toJson() => {
+        'top_id': top?.id,
+        'bottom_id': bottom?.id,
+        'footwear_id': footwear?.id,
+        'accessory_id': accessory?.id,
+      };
+
+  /// Rehydrates from the stored id-only shape by looking each id up in
+  /// the local [WardrobeService]. Unknown ids resolve to null so a
+  /// deleted item doesn't blow up the calendar.
+  static PlannedOutfit? fromJson(Map<String, dynamic>? json) {
+    if (json == null) return null;
+    WardrobeItem? resolve(String key) {
+      final id = json[key] as String?;
+      return id == null ? null : WardrobeService.instance.byId(id);
+    }
+
+    final outfit = PlannedOutfit(
+      top: resolve('top_id'),
+      bottom: resolve('bottom_id'),
+      footwear: resolve('footwear_id'),
+      accessory: resolve('accessory_id'),
+    );
+    return outfit.isEmpty ? null : outfit;
+  }
 }
 
 /// A calendar entry the user wants to dress for.
@@ -72,6 +102,21 @@ class PlannerEvent {
       date: date ?? this.date,
       assignedOutfit:
           clearOutfit ? null : (assignedOutfit ?? this.assignedOutfit),
+    );
+  }
+
+  /// Parses a row from the `planner_events` Supabase table.
+  factory PlannerEvent.fromRow(Map<String, dynamic> row) {
+    return PlannerEvent(
+      id: row['id'] as String,
+      title: row['title'] as String,
+      subtitle: row['subtitle'] as String?,
+      // Supabase returns a UTC-flagged ISO string; flip to local so the
+      // month grid & time pickers read naturally.
+      date: DateTime.parse(row['event_date'] as String).toLocal(),
+      assignedOutfit: PlannedOutfit.fromJson(
+        row['outfit'] as Map<String, dynamic>?,
+      ),
     );
   }
 }
