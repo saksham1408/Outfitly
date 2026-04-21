@@ -24,6 +24,10 @@ import '../../features/checkout/checkout_screen.dart';
 import '../../features/checkout/order_success_screen.dart';
 import '../../features/tracking/screens/order_tracking_screen.dart';
 import '../../features/outfitly_ai/presentation/outfitly_ai_screen.dart';
+import '../../features/wardrobe_calendar/presentation/wardrobe_calendar_screen.dart';
+import '../../features/wardrobe_calendar/presentation/wardrobe_inventory_screen.dart';
+import '../../features/wardrobe_calendar/presentation/outfit_planner_screen.dart';
+import '../../features/wardrobe_calendar/domain/planner_event.dart';
 import '../../features/shell/main_shell.dart';
 import '../../features/profile/screens/profile_screen.dart';
 import '../../features/search/screens/search_screen.dart';
@@ -223,6 +227,25 @@ abstract final class AppRouter {
         path: '/order-success',
         name: 'orderSuccess',
         builder: (context, state) => const OrderSuccessScreen(),
+      ),
+
+      // ── Wardrobe Calendar & Planner ──
+      GoRoute(
+        path: '/wardrobe',
+        name: 'wardrobe',
+        builder: (context, state) => const WardrobeInventoryScreen(),
+      ),
+      GoRoute(
+        path: '/wardrobe/calendar',
+        name: 'wardrobeCalendar',
+        builder: (context, state) => const WardrobeCalendarScreen(),
+      ),
+      GoRoute(
+        path: '/wardrobe/planner',
+        name: 'wardrobePlanner',
+        builder: (context, state) => OutfitPlannerScreen(
+          event: state.extra as PlannerEvent,
+        ),
       ),
 
       // ── Tracking ──
