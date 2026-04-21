@@ -23,6 +23,8 @@ import '../../features/checkout/cart_screen.dart';
 import '../../features/checkout/checkout_screen.dart';
 import '../../features/checkout/order_success_screen.dart';
 import '../../features/tracking/screens/order_tracking_screen.dart';
+import '../../features/virtual_try_on/presentation/virtual_try_on_screen.dart';
+import '../../features/catalog/models/product_model.dart';
 import '../../features/outfitly_ai/presentation/outfitly_ai_screen.dart';
 import '../../features/wardrobe_calendar/presentation/wardrobe_calendar_screen.dart';
 import '../../features/wardrobe_calendar/presentation/wardrobe_inventory_screen.dart';
@@ -262,6 +264,15 @@ abstract final class AppRouter {
         name: 'tracking',
         builder: (context, state) => OrderTrackingScreen(
           orderId: state.pathParameters['orderId']!,
+        ),
+      ),
+
+      // ── AR Virtual Try-On ──
+      GoRoute(
+        path: '/virtual-try-on',
+        name: 'virtualTryOn',
+        builder: (context, state) => VirtualTryOnScreen(
+          product: state.extra as ProductModel,
         ),
       ),
     ],
