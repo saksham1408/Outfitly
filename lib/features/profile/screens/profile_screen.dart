@@ -208,7 +208,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         _menuTile(
                           Icons.info_outline,
-                          'About Outfitly',
+                          'About VASTRAHUB',
                           'Version 1.0.4 · Crafting Phase',
                           onTap: () {},
                         ),

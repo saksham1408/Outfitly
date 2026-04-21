@@ -72,7 +72,7 @@ class _OutfitlyAiScreenState extends State<OutfitlyAiScreen> {
         backgroundColor: AppColors.background,
         elevation: 0,
         title: Text(
-          'Outfitly AI',
+          'VASTRAHUB AI',
           style: GoogleFonts.newsreader(
             fontSize: 22,
             fontStyle: FontStyle.italic,

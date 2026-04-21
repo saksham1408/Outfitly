@@ -179,7 +179,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   // ── Mobile Brand Header ──
                   Center(
                     child: Text(
-                      'Outfitly',
+                      'VASTRAHUB',
                       style: GoogleFonts.newsreader(
                         fontSize: 32,
                         fontStyle: FontStyle.italic,
@@ -628,7 +628,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       SizedBox(
                                         width: 100,
                                         child: Text(
-                                          'Secured via Outfitly Encrypted Protocol',
+                                          'Secured via VASTRAHUB Encrypted Protocol',
                                           style: GoogleFonts.manrope(
                                             fontSize: 9,
                                             color: AppColors.textSecondary,

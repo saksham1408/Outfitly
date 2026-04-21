@@ -58,7 +58,7 @@ class _MainShellState extends State<MainShell> {
               children: [
                 _navItem(0, Icons.home_outlined, Icons.home_rounded, 'Home'),
                 _navItem(1, Icons.auto_awesome_outlined, Icons.auto_awesome,
-                    'Outfitly AI'),
+                    'VASTRAHUB AI'),
                 _navItem(2, Icons.checkroom_outlined, Icons.checkroom_rounded,
                     'Closet'),
                 _navItem(3, Icons.local_shipping_outlined,
