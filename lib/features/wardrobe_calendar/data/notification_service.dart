@@ -187,4 +187,43 @@ class NotificationService {
   /// it doesn't overwrite the scheduled day-of notification.
   int _confirmIdFor(String eventId) =>
       ('confirm_$eventId').hashCode & 0x7fffffff;
+
+  /// Debug helper — schedules a notification to fire in [delay]
+  /// seconds. Used by a long-press on the calendar FAB so developers
+  /// can verify the zonedSchedule pipeline end-to-end without having
+  /// to wait until 8 AM on an event day. Not wired up in release UI.
+  Future<void> scheduleTestReminder({int delaySeconds = 10}) async {
+    await init();
+    try {
+      final scheduled =
+          tz.TZDateTime.now(tz.local).add(Duration(seconds: delaySeconds));
+      await _plugin.zonedSchedule(
+        999001,
+        'Test reminder ⏱',
+        'If you\'re reading this, scheduled notifications work.',
+        scheduled,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'wardrobe_planner',
+            'Outfit Planner',
+            channelDescription:
+                'Day-of reminders for events you\'ve planned outfits for.',
+            importance: Importance.high,
+            priority: Priority.high,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBanner: true,
+            presentList: true,
+            presentSound: true,
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    } catch (e, st) {
+      debugPrint('NotificationService.scheduleTestReminder failed: $e\n$st');
+    }
+  }
 }
