@@ -76,12 +76,16 @@ class CalendarService {
       throw StateError('Cannot create an event without a signed-in user.');
     }
 
-    // Persist the local wall-clock moment as UTC so every device reads
-    // back the same instant; PlannerEvent.fromRow flips it back to local.
+    // Deliberately NOT sending `user_id` in the payload. Migration 019
+    // sets `user_id DEFAULT auth.uid()`, so the DB fills it in from the
+    // JWT — which guarantees `auth.uid() = user_id` in the RLS
+    // `WITH CHECK` and removes a whole class of client/server mismatch
+    // errors. Persist the local wall-clock moment as UTC so every
+    // device reads back the same instant; PlannerEvent.fromRow flips it
+    // back to local.
     final row = await AppSupabase.client
         .from(_table)
         .insert({
-          'user_id': userId,
           'title': title,
           'subtitle': subtitle,
           'event_date': date.toUtc().toIso8601String(),
