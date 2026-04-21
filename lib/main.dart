@@ -6,6 +6,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'core/network/supabase_client.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'features/wardrobe_calendar/data/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,6 +32,20 @@ void main() async {
   }
 
   await AppSupabase.init();
+
+  // Opt-in auto-test for the notification pipeline. Enabled with
+  //   flutter run --dart-define=NOTIF_AUTO_TEST=true
+  // so normal debug runs don't spam a banner. When set, we warm up the
+  // NotificationService (forcing the iOS permission prompt early) and
+  // schedule a test reminder 20 seconds from boot — plenty of time to
+  // tap "Allow" and background the app before the banner fires.
+  const autoTest = bool.fromEnvironment('NOTIF_AUTO_TEST', defaultValue: false);
+  if (autoTest) {
+    await NotificationService.instance.init();
+    await NotificationService.instance.scheduleTestReminder(delaySeconds: 20);
+    debugPrint('NOTIF_AUTO_TEST: test reminder scheduled for +20s');
+  }
+
   runApp(const OutfitlyApp());
 }
 
