@@ -56,5 +56,7 @@
 	<string>VASTRAHUB needs camera access to calculate your body measurements with the AI Body Scanner, and to snap reference images for your custom embroidery requests.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>VASTRAHUB does not record audio — this permission is required by the image picker on some devices.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>VASTRAHUB uses your location to pre-fill your delivery address so you see accurate pricing and ETAs for your neighbourhood.</string>
 </dict>
 </plist>
