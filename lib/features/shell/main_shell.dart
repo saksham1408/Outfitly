@@ -5,6 +5,7 @@ import '../../core/theme/theme.dart';
 import '../catalog/presentation/home/home_screen.dart';
 import '../outfitly_ai/presentation/outfitly_ai_screen.dart';
 import '../tracking/screens/orders_screen.dart';
+import '../wardrobe_calendar/presentation/wardrobe_calendar_screen.dart';
 
 class MainShell extends StatefulWidget {
   final int initialIndex;
@@ -21,6 +22,7 @@ class _MainShellState extends State<MainShell> {
   final _screens = const [
     HomeScreen(),
     OutfitlyAiScreen(),
+    WardrobeCalendarScreen(),
     OrdersScreen(),
   ];
 
@@ -55,8 +57,12 @@ class _MainShellState extends State<MainShell> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _navItem(0, Icons.home_outlined, Icons.home_rounded, 'Home'),
-                _navItem(1, Icons.auto_awesome_outlined, Icons.auto_awesome, 'Outfitly AI'),
-                _navItem(2, Icons.local_shipping_outlined, Icons.local_shipping_rounded, 'Orders'),
+                _navItem(1, Icons.auto_awesome_outlined, Icons.auto_awesome,
+                    'Outfitly AI'),
+                _navItem(2, Icons.checkroom_outlined, Icons.checkroom_rounded,
+                    'Closet'),
+                _navItem(3, Icons.local_shipping_outlined,
+                    Icons.local_shipping_rounded, 'Orders'),
               ],
             ),
           ),
@@ -72,7 +78,7 @@ class _MainShellState extends State<MainShell> {
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: isActive ? AppColors.primary.withAlpha(15) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
