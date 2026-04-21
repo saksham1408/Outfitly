@@ -43,6 +43,12 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen>
 
   // ── Capture ──
   final ScreenshotController _screenshotController = ScreenshotController();
+  // iOS (especially iPad + some iOS 17+ builds) requires a non-zero
+  // `sharePositionOrigin` for `Share.shareXFiles`, otherwise UIKit
+  // throws `sharePositionOrigin: argument must be set`. We anchor the
+  // popover on the shutter button by reading its render box at share
+  // time.
+  final GlobalKey _shutterKey = GlobalKey();
   bool _capturing = false;
 
   // ── Garment overlay transform ──
@@ -174,6 +180,7 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen>
         text:
             'Trying on "${widget.product.name}" on VASTRAHUB — what do you think?',
         subject: 'VASTRAHUB Virtual Try-On',
+        sharePositionOrigin: _shutterOriginRect(),
       );
     } catch (e) {
       messenger.showSnackBar(
@@ -185,6 +192,22 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen>
     } finally {
       if (mounted) setState(() => _capturing = false);
     }
+  }
+
+  /// Returns the global Rect of the shutter button for the iOS share
+  /// popover. Falls back to a 1px rect at the screen centre if the
+  /// button hasn't laid out yet — UIKit rejects zero-size origins.
+  Rect _shutterOriginRect() {
+    final ctx = _shutterKey.currentContext;
+    if (ctx != null) {
+      final box = ctx.findRenderObject();
+      if (box is RenderBox && box.hasSize) {
+        final topLeft = box.localToGlobal(Offset.zero);
+        return topLeft & box.size;
+      }
+    }
+    final size = MediaQuery.of(context).size;
+    return Rect.fromLTWH(size.width / 2 - 0.5, size.height / 2 - 0.5, 1, 1);
   }
 
   /// Mocked AI size suggestion. Designed so it can be swapped out for a
@@ -591,6 +614,7 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen>
 
   Widget _buildShutter() {
     return GestureDetector(
+      key: _shutterKey,
       onTap: _captureAndShare,
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(

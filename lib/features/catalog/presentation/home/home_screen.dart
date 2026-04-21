@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/location/location_service.dart';
 import '../../../../core/theme/theme.dart';
 import '../../data/repositories/catalog_repository.dart';
 import '../../domain/models/app_category.dart';
@@ -50,6 +51,12 @@ class _HomeScreenState extends State<HomeScreen>
   void initState() {
     super.initState();
     _loadTopCategories();
+    // Kick off the live delivery-address resolution. First launch this
+    // triggers the OS permission prompt; subsequent launches hydrate
+    // from the cached value and silently refresh in the background.
+    // Deliberately unawaited — we never want the feed to wait on
+    // location.
+    LocationService.instance.ensure();
   }
 
   @override
