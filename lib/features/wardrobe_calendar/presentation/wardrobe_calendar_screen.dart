@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -5,6 +6,7 @@ import 'package:table_calendar/table_calendar.dart';
 
 import '../../../core/theme/theme.dart';
 import '../data/calendar_service.dart';
+import '../data/notification_service.dart';
 import '../domain/planner_event.dart';
 import '../domain/wardrobe_item.dart';
 
@@ -74,17 +76,42 @@ class _WardrobeCalendarScreenState extends State<WardrobeCalendarScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        onPressed: _openAddEvent,
-        icon: const Icon(Icons.add_rounded),
-        label: Text(
-          'NEW EVENT',
-          style: GoogleFonts.manrope(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.4,
+      floatingActionButton: GestureDetector(
+        // Debug-only: long-press the FAB to fire a test notification in
+        // 10 seconds. Lets developers verify the zonedSchedule pipeline
+        // without waiting until 8 AM on a real event day. Disabled in
+        // release builds so end users never stumble into it.
+        onLongPress: kDebugMode
+            ? () async {
+                // Grab the messenger BEFORE the await so the analyzer
+                // sees we're not using BuildContext after an async gap.
+                final messenger = ScaffoldMessenger.of(context);
+                await NotificationService.instance.scheduleTestReminder();
+                if (!mounted) return;
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Test reminder scheduled for 10s from now. '
+                      'Background the app if you want to see the banner.',
+                      style: GoogleFonts.manrope(fontSize: 12),
+                    ),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            : null,
+        child: FloatingActionButton.extended(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          onPressed: _openAddEvent,
+          icon: const Icon(Icons.add_rounded),
+          label: Text(
+            'NEW EVENT',
+            style: GoogleFonts.manrope(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.4,
+            ),
           ),
         ),
       ),
