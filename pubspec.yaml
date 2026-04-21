@@ -57,6 +57,20 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  # Generates every iOS + Android launcher icon size from a single
+  # source PNG. Run with: dart run flutter_launcher_icons
+  flutter_launcher_icons: ^0.14.1
+
+# ── Launcher-icon generation ──
+# Source image: assets/branding/vastrahub_icon.png (1024x1024, square).
+# iOS requires an opaque icon (no alpha), which is why remove_alpha_ios:
+# true flattens any transparency onto the configured background.
+flutter_launcher_icons:
+  image_path: "assets/branding/vastrahub_icon.png"
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  background_color_ios: "#3B1A4F"  # royal purple behind the logo
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -71,6 +85,7 @@ flutter:
 
   assets:
     - .env
+    - assets/branding/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
