@@ -32,10 +32,13 @@ class NotificationService {
       await _plugin.initialize(
         const InitializationSettings(
           android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          // Ask for permissions up-front on iOS so the very first save
+          // can actually deliver a notification; without this the OS
+          // silently drops it until the user has opted in.
           iOS: DarwinInitializationSettings(
-            requestAlertPermission: false,
-            requestBadgePermission: false,
-            requestSoundPermission: false,
+            requestAlertPermission: true,
+            requestBadgePermission: true,
+            requestSoundPermission: true,
           ),
         ),
       );
@@ -103,7 +106,16 @@ class NotificationService {
             importance: Importance.high,
             priority: Priority.high,
           ),
-          iOS: DarwinNotificationDetails(),
+          // presentBanner/List/Sound = true so iOS shows the banner
+          // even when Outfitly is in the foreground. Without these
+          // flags the OS suppresses the alert and the user assumes the
+          // reminder never fired.
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBanner: true,
+            presentList: true,
+            presentSound: true,
+          ),
         ),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
@@ -112,6 +124,47 @@ class NotificationService {
     } catch (e, st) {
       debugPrint('NotificationService.scheduleEventReminder failed: $e\n$st');
     }
+  }
+
+  /// Fires an immediate "Reminder set" banner right after a save so the
+  /// user gets visible proof the notification pipeline works, without
+  /// having to wait for 8 AM on the event day. Uses a separate id from
+  /// the scheduled day-of reminder so they don't clobber each other.
+  Future<void> confirmReminderScheduled(PlannerEvent event) async {
+    await init();
+    try {
+      final eventDay = _formatDay(event.date);
+      await _plugin.show(
+        _confirmIdFor(event.id),
+        'Reminder set ✨',
+        "We'll nudge you at 8:00 AM on $eventDay for ${event.title}.",
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'wardrobe_planner',
+            'Outfit Planner',
+            channelDescription:
+                'Day-of reminders for events you\'ve planned outfits for.',
+            importance: Importance.high,
+            priority: Priority.high,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBanner: true,
+            presentList: true,
+            presentSound: true,
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('NotificationService.confirmReminderScheduled failed: $e');
+    }
+  }
+
+  String _formatDay(DateTime d) {
+    const months = [
+      'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'
+    ];
+    return '${d.day} ${months[d.month - 1]}';
   }
 
   /// Cancels a previously scheduled reminder (e.g. when the event is
@@ -129,4 +182,9 @@ class NotificationService {
   /// deterministically from the event's uuid so reschedules/cancels
   /// always target the same notification.
   int _idFor(String eventId) => eventId.hashCode & 0x7fffffff;
+
+  /// Separate id namespace for the immediate "Reminder set" toast so
+  /// it doesn't overwrite the scheduled day-of notification.
+  int _confirmIdFor(String eventId) =>
+      ('confirm_$eventId').hashCode & 0x7fffffff;
 }

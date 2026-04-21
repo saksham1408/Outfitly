@@ -106,8 +106,14 @@ class _AddEventScreenState extends State<AddEventScreen> {
       );
 
       // Fire-and-forget the reminder scheduling — we don't want a
-      // notification-permission hiccup to block the event save.
+      // notification-permission hiccup to block the event save. We
+      // also pop an immediate "Reminder set" banner so the user gets
+      // visible proof the notification pipeline works without waiting
+      // for 8 AM on the event day.
       unawaited(NotificationService.instance.scheduleEventReminder(created));
+      unawaited(
+        NotificationService.instance.confirmReminderScheduled(created),
+      );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
