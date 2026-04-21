@@ -112,7 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // ── Brand ──
                   Text(
-                    'Outfitly',
+                    'VASTRAHUB',
                     style: GoogleFonts.newsreader(
                       fontSize: 48,
                       fontWeight: FontWeight.w400,

@@ -10,7 +10,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Outfitly</string>
+	<string>VASTRAHUB</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -18,7 +18,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>outfitly</string>
+	<string>VASTRAHUB</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -51,10 +51,10 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Outfitly needs access to your photos so you can attach a reference design for custom embroidery.</string>
+	<string>VASTRAHUB needs access to your photos so you can attach a reference design for custom embroidery.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Outfitly needs camera access to calculate your body measurements with the AI Body Scanner, and to snap reference images for your custom embroidery requests.</string>
+	<string>VASTRAHUB needs camera access to calculate your body measurements with the AI Body Scanner, and to snap reference images for your custom embroidery requests.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Outfitly does not record audio — this permission is required by the image picker on some devices.</string>
+	<string>VASTRAHUB does not record audio — this permission is required by the image picker on some devices.</string>
 </dict>
 </plist>

@@ -44,7 +44,7 @@ class AiStylistService {
     if (model == null) return OutfitRecommendation.fallback;
 
     final prompt =
-        "You are an elite, high-end fashion stylist for the app Outfitly. "
+        "You are an elite, high-end fashion stylist for the app VASTRAHUB. "
         "The user feels $mood, the weather is $weather, and they are going to $event. "
         "Suggest a complete outfit. You MUST return ONLY a raw, valid JSON object "
         "with the following exact keys: 'top', 'bottom', 'shoes', 'accessories', "

@@ -211,7 +211,7 @@ class _WardrobeInventoryScreenState extends State<WardrobeInventoryScreen>
           ),
         ),
         content: Text(
-          '${all.length} items · $fromOutfitly from Outfitly',
+          '${all.length} items · $fromOutfitly from VASTRAHUB',
           style: GoogleFonts.manrope(
             fontSize: 14,
             color: AppColors.textSecondary,

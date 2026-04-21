@@ -91,7 +91,7 @@ class NotificationService {
 
       final outfit = event.assignedOutfit;
       final body = outfit == null || outfit.isEmpty
-          ? "It's time for ${event.title} — open Outfitly to plan your look."
+          ? "It's time for ${event.title} — open VASTRAHUB to plan your look."
           : "Your pick for ${event.title} is ready. Have a great one!";
 
       await _plugin.zonedSchedule(
