@@ -15,6 +15,10 @@ import '../../features/checkout/models/order_payload.dart';
 import '../../features/measurements/presentation/measurement_decision_screen.dart';
 import '../../features/measurements/presentation/manual_measurement_screen.dart';
 import '../../features/measurements/presentation/book_tailor_screen.dart';
+import '../../features/measurements/presentation/ai_scanner/ai_scan_intro_screen.dart';
+import '../../features/measurements/presentation/ai_scanner/ai_camera_screen.dart';
+import '../../features/measurements/presentation/ai_scanner/ai_scanning_screen.dart';
+import '../../features/measurements/presentation/ai_scanner/ai_measurement_review_screen.dart';
 import '../../features/checkout/cart_screen.dart';
 import '../../features/checkout/checkout_screen.dart';
 import '../../features/checkout/order_success_screen.dart';
@@ -155,6 +159,36 @@ abstract final class AppRouter {
         name: 'bookTailor',
         builder: (context, state) => BookTailorScreen(
           payload: state.extra as OrderPayload?,
+        ),
+      ),
+
+      // ── AI Body Scanner ──
+      GoRoute(
+        path: '/measurements/ai-scan-intro',
+        name: 'aiScanIntro',
+        builder: (context, state) => AiScanIntroScreen(
+          payload: state.extra as OrderPayload?,
+        ),
+      ),
+      GoRoute(
+        path: '/measurements/ai-scan-camera',
+        name: 'aiScanCamera',
+        builder: (context, state) => AiCameraScreen(
+          payload: state.extra as OrderPayload?,
+        ),
+      ),
+      GoRoute(
+        path: '/measurements/ai-scan-scanning',
+        name: 'aiScanScanning',
+        builder: (context, state) => AiScanningScreen(
+          payload: state.extra as AiScanPayload,
+        ),
+      ),
+      GoRoute(
+        path: '/measurements/ai-scan-review',
+        name: 'aiScanReview',
+        builder: (context, state) => AiMeasurementReviewScreen(
+          payload: state.extra as AiReviewPayload,
         ),
       ),
 
