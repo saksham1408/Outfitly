@@ -149,16 +149,20 @@ class _OutfitPlannerScreenState extends State<OutfitPlannerScreen> {
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      CalendarService.instance.assignOutfit(widget.event.id, _outfit);
-      // Refresh the event reference so the confirmation copy uses the
-      // freshly assigned outfit.
-      final updated = CalendarService.instance.events.value
-          .firstWhere((e) => e.id == widget.event.id);
-      await NotificationService.instance.confirmOutfitPlanned(updated);
+      // Persist to Supabase first, then (re)schedule the day-of
+      // reminder against the freshly updated event so the notification
+      // body reflects the latest outfit.
+      final updated = await CalendarService.instance.assignOutfit(
+        widget.event.id,
+        _outfit,
+      );
+      await NotificationService.instance.scheduleEventReminder(updated);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Saved · we\'ll remind you the night before.'),
+          content: Text(
+            'Saved · we\'ll remind you the morning of ${widget.event.title}.',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
