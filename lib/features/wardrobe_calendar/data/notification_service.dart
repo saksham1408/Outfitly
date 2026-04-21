@@ -5,26 +5,24 @@ import 'package:timezone/timezone.dart' as tz;
 import '../domain/planner_event.dart';
 
 /// Thin wrapper around `flutter_local_notifications` scoped to the
-/// Wardrobe Planner's day-of reminders.
+/// Wardrobe Planner's reminders.
 ///
-/// On save we schedule a zoned notification for 8:00 AM on the event
-/// day. If the event day is today and 8 AM has already passed, we fire
-/// a reminder 10 seconds later instead — the user still gets immediate
-/// confirmation the reminder pipeline is wired up.
+/// On save we schedule a zoned notification for the exact date + time
+/// the user picked in the add-event form. If that moment has already
+/// passed (editing an outfit for a past event, for example) we fall
+/// back to firing 10 seconds from now so the user still gets visible
+/// confirmation the pipeline is wired up.
 ///
 /// We deliberately use [AndroidScheduleMode.inexactAllowWhileIdle] so
 /// we don't require the `SCHEDULE_EXACT_ALARM` runtime permission on
-/// Android 13+; an 8 AM outfit nudge doesn't need second-level precision.
+/// Android 13+; the OS may shift the delivery by a few minutes to
+/// batch wake-ups, which is fine for a styling nudge.
 class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
 
   static final _plugin = FlutterLocalNotificationsPlugin();
   bool _inited = false;
-
-  /// Hour the day-of reminder fires. Kept as a constant so the copy
-  /// and the scheduling stay in lockstep.
-  static const _reminderHour = 8;
 
   Future<void> init() async {
     if (_inited) return;
@@ -63,11 +61,12 @@ class NotificationService {
     }
   }
 
-  /// Schedules the day-of reminder for [event] at 8 AM local time. If
-  /// 8 AM has already passed on the event day (or the event is in the
-  /// past) we fall back to a "10 seconds from now" fire so the user
-  /// still gets feedback that their outfit saved. Any prior reminder
-  /// for the same event id is cancelled first so edits don't stack.
+  /// Schedules the reminder for [event] at the exact date + time the
+  /// user picked in the form. If that moment is already in the past
+  /// (e.g. the user is editing an outfit for an event earlier today)
+  /// we fall back to "10 seconds from now" so there's still visible
+  /// feedback the save succeeded. Any prior reminder for the same
+  /// event id is cancelled first so edits don't stack up.
   Future<void> scheduleEventReminder(PlannerEvent event) async {
     await init();
 
@@ -76,25 +75,28 @@ class NotificationService {
       await _plugin.cancel(notificationId);
 
       final now = tz.TZDateTime.now(tz.local);
-      final eventDay = tz.TZDateTime(
+      // Fire at the exact instant the user chose — year/month/day plus
+      // the hour/minute from the time picker.
+      final eventMoment = tz.TZDateTime(
         tz.local,
         event.date.year,
         event.date.month,
         event.date.day,
-        _reminderHour,
+        event.date.hour,
+        event.date.minute,
       );
-      final scheduled = eventDay.isAfter(now)
-          ? eventDay
+      final scheduled = eventMoment.isAfter(now)
+          ? eventMoment
           : now.add(const Duration(seconds: 10));
 
       final outfit = event.assignedOutfit;
       final body = outfit == null || outfit.isEmpty
-          ? "It's ${event.title} today — open Outfitly to plan your look."
-          : "Today's pick for ${event.title} is ready. Have a great one!";
+          ? "It's time for ${event.title} — open Outfitly to plan your look."
+          : "Your pick for ${event.title} is ready. Have a great one!";
 
       await _plugin.zonedSchedule(
         notificationId,
-        'Dressing up today ✨',
+        'Time to get ready ✨',
         body,
         scheduled,
         const NotificationDetails(
@@ -128,16 +130,17 @@ class NotificationService {
 
   /// Fires an immediate "Reminder set" banner right after a save so the
   /// user gets visible proof the notification pipeline works, without
-  /// having to wait for 8 AM on the event day. Uses a separate id from
-  /// the scheduled day-of reminder so they don't clobber each other.
+  /// having to wait for the event's scheduled time. Uses a separate id
+  /// from the scheduled reminder so they don't clobber each other.
   Future<void> confirmReminderScheduled(PlannerEvent event) async {
     await init();
     try {
       final eventDay = _formatDay(event.date);
+      final eventTime = _formatTime(event.date);
       await _plugin.show(
         _confirmIdFor(event.id),
         'Reminder set ✨',
-        "We'll nudge you at 8:00 AM on $eventDay for ${event.title}.",
+        "We'll nudge you at $eventTime on $eventDay for ${event.title}.",
         const NotificationDetails(
           android: AndroidNotificationDetails(
             'wardrobe_planner',
@@ -165,6 +168,16 @@ class NotificationService {
       'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'
     ];
     return '${d.day} ${months[d.month - 1]}';
+  }
+
+  /// 12-hour clock formatting (e.g. "2:00 AM", "8:30 PM") so the copy
+  /// matches the time picker the user just used.
+  String _formatTime(DateTime d) {
+    final h24 = d.hour;
+    final hour = h24 == 0 ? 12 : (h24 > 12 ? h24 - 12 : h24);
+    final minute = d.minute.toString().padLeft(2, '0');
+    final suffix = h24 < 12 ? 'AM' : 'PM';
+    return '$hour:$minute $suffix';
   }
 
   /// Cancels a previously scheduled reminder (e.g. when the event is

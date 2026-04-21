@@ -161,7 +161,7 @@ class _OutfitPlannerScreenState extends State<OutfitPlannerScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Saved · we\'ll remind you the morning of ${widget.event.title}.',
+            'Saved · we\'ll remind you right when ${widget.event.title} starts.',
           ),
           behavior: SnackBarBehavior.floating,
         ),

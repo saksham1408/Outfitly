@@ -119,7 +119,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Saved · we\'ll nudge you the morning of.',
+            'Saved · we\'ll nudge you right when it starts.',
             style: GoogleFonts.manrope(fontSize: 13),
           ),
           behavior: SnackBarBehavior.floating,
@@ -171,7 +171,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Add the occasion, pick a day, and we\'ll remind you the morning of.',
+                      'Add the occasion, pick a day and time, and we\'ll remind you right when it starts.',
                       style: GoogleFonts.manrope(
                         fontSize: 12,
                         color: AppColors.textTertiary,
@@ -253,7 +253,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'You\'ll get a reminder at 8:00 AM on the event day.',
+                              'You\'ll get a reminder at the exact time you picked above.',
                               style: GoogleFonts.manrope(
                                 fontSize: 12,
                                 color: AppColors.primary,
