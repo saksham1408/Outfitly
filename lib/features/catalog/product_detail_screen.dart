@@ -134,34 +134,67 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.screenPadding),
-          child: SizedBox(
-            height: 52,
-            child: ElevatedButton(
-              onPressed: () {
-                // Embroidery products get the full Design Studio flow so
-                // the customer can attach a custom reference image; the
-                // studio builds the OrderPayload itself when the user
-                // reaches the measurement step. Everything else goes
-                // straight to the measurement decision with a fresh
-                // OrderPayload that downstream screens mutate.
-                if (product.isEmbroidery) {
-                  context.push('/product/${product.id}/design-studio');
-                  return;
-                }
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ── Virtual Try-On (secondary, lives above Customize so the
+              // user sees the conversion booster first but the primary
+              // CTA still wins visual weight). ──
+              SizedBox(
+                height: 48,
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    context.push('/virtual-try-on', extra: product);
+                  },
+                  icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                  label: const Text('Virtual Try-On'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: BorderSide(
+                      color: AppColors.primary.withAlpha(140),
+                      width: 1.2,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    textStyle: AppTypography.labelLarge,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              SizedBox(
+                height: 52,
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    // Embroidery products get the full Design Studio flow so
+                    // the customer can attach a custom reference image; the
+                    // studio builds the OrderPayload itself when the user
+                    // reaches the measurement step. Everything else goes
+                    // straight to the measurement decision with a fresh
+                    // OrderPayload that downstream screens mutate.
+                    if (product.isEmbroidery) {
+                      context.push('/product/${product.id}/design-studio');
+                      return;
+                    }
 
-                final payload = OrderPayload(
-                  productName: product.name,
-                  price: product.basePrice,
-                  fabric: product.fabricOptions.isNotEmpty
-                      ? product.fabricOptions.first
-                      : null,
-                  imageUrl:
-                      product.images.isNotEmpty ? product.images.first : null,
-                );
-                context.push('/measurements/decision', extra: payload);
-              },
-              child: const Text('Customize This'),
-            ),
+                    final payload = OrderPayload(
+                      productName: product.name,
+                      price: product.basePrice,
+                      fabric: product.fabricOptions.isNotEmpty
+                          ? product.fabricOptions.first
+                          : null,
+                      imageUrl: product.images.isNotEmpty
+                          ? product.images.first
+                          : null,
+                    );
+                    context.push('/measurements/decision', extra: payload);
+                  },
+                  child: const Text('Customize This'),
+                ),
+              ),
+            ],
           ),
         ),
       ),
