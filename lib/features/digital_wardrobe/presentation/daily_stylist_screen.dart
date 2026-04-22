@@ -89,6 +89,51 @@ class _DailyStylistScreenState extends State<DailyStylistScreen> {
           ),
         ),
         centerTitle: false,
+        actions: [
+          // Cross-navigation into the generative "Style a New Piece"
+          // flow. Kept as a compact pill so it's discoverable without
+          // stealing focus from the "Dress Me" primary action below.
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Center(
+              child: Material(
+                color: AppColors.accent.withAlpha(40),
+                borderRadius: BorderRadius.circular(18),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(18),
+                  onTap: () =>
+                      context.push('/digital-wardrobe/style-anchor'),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 7,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.add_photo_alternate_outlined,
+                          size: 14,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          'New Piece',
+                          style: GoogleFonts.manrope(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: ValueListenableBuilder<List<WardrobeItem>>(
         valueListenable: WardrobeRepository.instance.items,
