@@ -19,12 +19,13 @@ import '../../../core/network/supabase_client.dart';
 ///     otherwise `/login`. The router's redirect gate gives `/` a free
 ///     pass so this screen can always render before we branch.
 ///
-/// The royal-purple backdrop (#3B1A4F) is lifted from the launcher-icon
+/// The crisp-white backdrop mirrors the launcher-icon + native-splash
 /// config so the OS → native splash → animated Dart splash handoff
 /// reads as a single seamless moment (no colour flash between stages).
 /// The Vastrahub mark is self-contained — hanger motif + "वस्त्र Hub"
-/// wordmark + tagline are all baked into the PNG — so we render it 1:1
-/// without any surrounding ring, icon or secondary text.
+/// wordmark + "FASHION FOR EVERY YOU" tagline are all baked into the
+/// PNG — so we render it 1:1 without any surrounding ring, wordmark
+/// overlay, or secondary text.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -39,13 +40,16 @@ class _SplashScreenState extends State<SplashScreen>
   /// animation room to breathe without feeling sluggish.
   static const Duration _holdDuration = Duration(seconds: 3);
 
-  /// Royal-purple matching the launcher-icon background and the logo's
-  /// own dark backdrop. Consistent across native splash + Dart splash.
-  static const Color _brandBackground = Color(0xFF3B1A4F);
+  /// Pure white matching the launcher-icon background and the logo's
+  /// own canvas. Consistent across native splash + Dart splash so the
+  /// transition between stages is invisible.
+  static const Color _brandBackground = Color(0xFFFFFFFF);
 
-  /// Slightly lighter purple for the radial-glow centre — stops the
-  /// large flat backdrop from reading as muddy.
-  static const Color _brandGlow = Color(0xFF5A2C78);
+  /// Warm off-white for the radial-glow centre — stops the flat
+  /// white backdrop from reading as sterile / office-document. Pulled
+  /// a half-step off pure white; enough to feel intentional without
+  /// competing with the black mark for attention.
+  static const Color _brandGlow = Color(0xFFF5F1EB);
 
   late final AnimationController _ctrl;
   late final Animation<double> _fade;
@@ -92,9 +96,10 @@ class _SplashScreenState extends State<SplashScreen>
       body: SafeArea(
         child: Stack(
           children: [
-            // Subtle radial glow behind the logo so the flat purple
-            // reads luxe rather than muddy. Colours match the logo's
-            // own internal lighting.
+            // Subtle warm-white radial glow so the flat backdrop reads
+            // luxe rather than sterile. Both stops are within touching
+            // distance of pure white — just enough depth for the eye
+            // to land on the centred mark.
             const Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -130,7 +135,9 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
             // Tiny footer accent — spins up *after* the main block is
-            // visible so the eye lands on the logo first.
+            // visible so the eye lands on the logo first. Translucent
+            // black stroke so it reads against the white backdrop
+            // without feeling heavy.
             Positioned(
               left: 0,
               right: 0,
@@ -144,7 +151,7 @@ class _SplashScreenState extends State<SplashScreen>
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        Colors.white.withAlpha(140),
+                        Colors.black.withAlpha(140),
                       ),
                     ),
                   ),
