@@ -72,14 +72,22 @@ class _DailyStylistScreenState extends State<DailyStylistScreen> {
         backgroundColor: AppColors.background,
         elevation: 0,
         scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            size: 18,
-            color: AppColors.primary,
-          ),
-          onPressed: () => context.pop(),
-        ),
+        // Show the back chevron only when this screen was pushed (e.g.
+        // from the Home card). When rendered as a bottom-nav tab there
+        // is nothing to pop — Flutter's `automaticallyImplyLeading`
+        // would still draw a default back button, so we explicitly set
+        // leading to null in that case.
+        automaticallyImplyLeading: false,
+        leading: Navigator.of(context).canPop()
+            ? IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 18,
+                  color: AppColors.primary,
+                ),
+                onPressed: () => context.pop(),
+              )
+            : null,
         title: Text(
           'Daily AI Stylist',
           style: GoogleFonts.manrope(
