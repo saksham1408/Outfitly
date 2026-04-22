@@ -37,6 +37,9 @@ import '../../features/search/screens/search_screen.dart';
 import '../../features/wishlist/screens/wishlist_screen.dart';
 import '../../features/account/presentation/add_address_screen.dart';
 import '../../features/addresses/domain/address_prefill.dart';
+import '../../features/digital_wardrobe/presentation/digital_closet_screen.dart';
+import '../../features/digital_wardrobe/presentation/wardrobe_upload_screen.dart';
+import '../../features/digital_wardrobe/presentation/daily_stylist_screen.dart';
 
 /// Central route configuration for the app.
 abstract final class AppRouter {
@@ -287,6 +290,26 @@ abstract final class AppRouter {
               ? state.extra as AddressPrefill
               : null,
         ),
+      ),
+
+      // ── Digital Wardrobe + Daily AI Stylist ──
+      // Personal digital closet (photograph → categorize → store in
+      // Supabase). Feeds the Daily Stylist so Gemini only recommends
+      // clothes the user actually owns.
+      GoRoute(
+        path: '/digital-wardrobe/closet',
+        name: 'digitalCloset',
+        builder: (context, state) => const DigitalClosetScreen(),
+      ),
+      GoRoute(
+        path: '/digital-wardrobe/upload',
+        name: 'digitalWardrobeUpload',
+        builder: (context, state) => const WardrobeUploadScreen(),
+      ),
+      GoRoute(
+        path: '/digital-wardrobe/stylist',
+        name: 'dailyStylist',
+        builder: (context, state) => const DailyStylistScreen(),
       ),
     ],
   );

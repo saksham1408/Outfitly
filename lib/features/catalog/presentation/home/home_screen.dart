@@ -211,6 +211,13 @@ class _HomeScreenState extends State<HomeScreen>
           ] else
             const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
+          // Daily AI Stylist — premium dashboard entry point. Placed
+          // above the hero banner so it's the first thing users see
+          // after the subcategory row; driving engagement with the
+          // wardrobe+Gemini feature is a top priority for this release.
+          SliverToBoxAdapter(child: _buildDailyStylistCard()),
+          const SliverToBoxAdapter(child: SizedBox(height: 20)),
+
           // Hero banner
           SliverToBoxAdapter(child: _buildHeroBanner()),
           const SliverToBoxAdapter(child: SizedBox(height: 80)),
@@ -291,6 +298,126 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Premium dashboard card that funnels users into the Daily AI
+  /// Stylist. Sits above the hero banner because driving adoption of
+  /// the Gemini-powered styling flow is a release priority — the
+  /// accent-gradient treatment makes it visually distinct from the
+  /// primary-coloured hero card below.
+  Widget _buildDailyStylistCard() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => context.push('/digital-wardrobe/stylist'),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.accent,
+                  AppColors.accent.withAlpha(210),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.accent.withAlpha(90),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(60),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Daily AI Stylist',
+                            style: GoogleFonts.manrope(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withAlpha(70),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'NEW',
+                              style: GoogleFonts.manrope(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Mix & match your closet — AI picks\ntoday\'s perfect outfit.',
+                        style: GoogleFonts.manrope(
+                          fontSize: 11.5,
+                          color: Colors.white.withAlpha(230),
+                          height: 1.25,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 18,
+                    color: AppColors.accent,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
