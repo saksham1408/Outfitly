@@ -1,0 +1,216 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
+
+import '../../../core/network/supabase_client.dart';
+import '../models/wardrobe_item.dart';
+
+/// Supabase-backed store of the user's Personal Digital Wardrobe.
+///
+/// Every item has two halves:
+///   1. A binary in the `user_wardrobe` Storage bucket, scoped to
+///      `${auth.uid()}/${uuid}.jpg` so Storage RLS can key on the
+///      folder name.
+///   2. A row in `public.wardrobe_items` pointing at that binary,
+///      guarded by own-row RLS.
+///
+/// The repository is a ValueNotifier-backed singleton so the closet
+/// grid, the upload screen, and the AI stylist all rebuild in lockstep
+/// when the list changes — without dragging in a state-management
+/// library for a single feature.
+class WardrobeRepository {
+  WardrobeRepository._();
+  static final WardrobeRepository instance = WardrobeRepository._();
+
+  static const String _table = 'wardrobe_items';
+  static const String _bucket = 'user_wardrobe';
+
+  final _client = AppSupabase.client;
+
+  final ValueNotifier<List<WardrobeItem>> _items =
+      ValueNotifier<List<WardrobeItem>>(const <WardrobeItem>[]);
+  ValueListenable<List<WardrobeItem>> get items => _items;
+
+  bool _fetched = false;
+
+  /// Idempotent first-load — called from the closet screen so the grid
+  /// paints as soon as the network responds. Preserves the cached list
+  /// on transient errors so a flaky connection doesn't blank the UI.
+  Future<void> ensureLoaded() async {
+    if (_fetched) return;
+    _fetched = true;
+    await refresh();
+  }
+
+  /// Force a refetch — used after a successful upload so the new card
+  /// appears without waiting for the screen to be rebuilt.
+  Future<void> refresh() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) {
+      _items.value = const [];
+      return;
+    }
+    try {
+      final rows = await _client
+          .from(_table)
+          .select()
+          .order('created_at', ascending: false);
+      _items.value = (rows as List)
+          .cast<Map<String, dynamic>>()
+          .map(WardrobeItem.fromRow)
+          .toList(growable: false);
+    } catch (e, st) {
+      debugPrint('WardrobeRepository.refresh failed — $e\n$st');
+      // Preserve whatever list we already had. A transient failure
+      // shouldn't empty the closet.
+    }
+  }
+
+  /// Upload a clothing photo to Storage and insert the metadata row.
+  ///
+  /// Flow:
+  ///   1. Read the [image] bytes.
+  ///   2. Upload to `user_wardrobe/${uid}/${newId}.${ext}` — the
+  ///      folder is the caller's uid so Storage RLS passes.
+  ///   3. Grab the public URL from Storage.
+  ///   4. Insert the row (server fills user_id from auth.uid()).
+  ///   5. Optimistically splice the new item into the cache so the
+  ///      closet grid updates on the next rebuild.
+  ///
+  /// Returns the created [WardrobeItem] so the upload screen can pop
+  /// and the daily stylist can immediately consider the new piece.
+  Future<WardrobeItem> uploadWardrobeItem({
+    required File image,
+    required String category,
+    required String color,
+    required String styleType,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw StateError('Must be signed in to add clothes to your closet.');
+    }
+
+    final bytes = await image.readAsBytes();
+    final ext = _extractExtension(image.path);
+    final id = const Uuid().v4();
+    // `${uid}/${id}.${ext}` — the first path segment has to be the uid
+    // to satisfy the Storage INSERT policy defined in migration 022.
+    final storagePath = '${user.id}/$id.$ext';
+
+    final storage = _client.storage.from(_bucket);
+
+    await storage.uploadBinary(
+      storagePath,
+      bytes,
+      fileOptions: FileOptions(
+        contentType: _mimeFor(ext),
+        upsert: false,
+      ),
+    );
+
+    final imageUrl = storage.getPublicUrl(storagePath);
+
+    final item = WardrobeItem(
+      id: id,
+      imageUrl: imageUrl,
+      category: category,
+      color: color,
+      styleType: styleType,
+      createdAt: DateTime.now(),
+    );
+
+    try {
+      await _client.from(_table).insert(item.toRow());
+    } catch (e) {
+      // Roll back the Storage object so we don't leave orphaned
+      // binaries paying for a row that never existed.
+      debugPrint('WardrobeRepository.uploadWardrobeItem: row insert failed '
+          '— rolling back storage: $e');
+      try {
+        await storage.remove([storagePath]);
+      } catch (_) {/* best-effort cleanup */}
+      rethrow;
+    }
+
+    _items.value = [item, ..._items.value];
+    return item;
+  }
+
+  /// Remove a wardrobe item. Deletes the Postgres row first (so RLS
+  /// can reject the call before we touch Storage) then the binary.
+  Future<void> delete(WardrobeItem item) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      await _client.from(_table).delete().eq('id', item.id);
+    } catch (e) {
+      debugPrint('WardrobeRepository.delete row failed — $e');
+      rethrow;
+    }
+
+    // Extract the storage path from the public URL. Public URL format:
+    // `.../storage/v1/object/public/user_wardrobe/<uid>/<file>`
+    final storagePath = _pathFromPublicUrl(item.imageUrl);
+    if (storagePath != null) {
+      try {
+        await _client.storage.from(_bucket).remove([storagePath]);
+      } catch (e) {
+        debugPrint('WardrobeRepository.delete storage cleanup failed — $e');
+      }
+    }
+
+    _items.value = _items.value.where((i) => i.id != item.id).toList();
+  }
+
+  // ── helpers ─────────────────────────────────────────────────
+
+  /// Accepts either an `XFile` (from `ImagePicker`) or a raw dart:io
+  /// [File] — ergonomic for the upload screen which pulls either.
+  Future<WardrobeItem> uploadFromXFile({
+    required XFile file,
+    required String category,
+    required String color,
+    required String styleType,
+  }) =>
+      uploadWardrobeItem(
+        image: File(file.path),
+        category: category,
+        color: color,
+        styleType: styleType,
+      );
+
+  String _extractExtension(String fileName) {
+    final dot = fileName.lastIndexOf('.');
+    if (dot == -1 || dot == fileName.length - 1) return 'jpg';
+    return fileName.substring(dot + 1).toLowerCase();
+  }
+
+  String _mimeFor(String ext) {
+    switch (ext) {
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'heic':
+        return 'image/heic';
+      case 'jpeg':
+      case 'jpg':
+      default:
+        return 'image/jpeg';
+    }
+  }
+
+  /// Extracts the object path from a Supabase public storage URL:
+  /// `.../storage/v1/object/public/user_wardrobe/UID/FILE.jpg` → `UID/FILE.jpg`.
+  String? _pathFromPublicUrl(String url) {
+    final marker = '/$_bucket/';
+    final idx = url.indexOf(marker);
+    if (idx == -1) return null;
+    return url.substring(idx + marker.length);
+  }
+}
