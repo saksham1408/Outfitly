@@ -2,16 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/network/supabase_client.dart';
-import '../../../core/theme/theme.dart';
 
-/// Animated brand splash — the first surface users see on cold launch.
+/// Animated brand splash — the first Flutter-rendered surface users see
+/// on cold launch.
 ///
 /// Behaviour:
 ///   * An [AnimationController] drives a combined fade-in + slight
-///     scale-up of the logo block. The whole animation finishes in
+///     scale-up of the Vastrahub logo. The animation finishes in
 ///     ~900ms; the screen then holds for the remainder of a 3-second
 ///     window before navigating forward.
 ///   * Navigation uses `context.go()` (not `push`) so the splash is
@@ -20,8 +19,12 @@ import '../../../core/theme/theme.dart';
 ///     otherwise `/login`. The router's redirect gate gives `/` a free
 ///     pass so this screen can always render before we branch.
 ///
-/// The deep-forest primary color is reused from the hero banner to tie
-/// the splash into the rest of the VASTRAHUB/Outfitly brand palette.
+/// The royal-purple backdrop (#3B1A4F) is lifted from the launcher-icon
+/// config so the OS → native splash → animated Dart splash handoff
+/// reads as a single seamless moment (no colour flash between stages).
+/// The Vastrahub mark is self-contained — hanger motif + "वस्त्र Hub"
+/// wordmark + tagline are all baked into the PNG — so we render it 1:1
+/// without any surrounding ring, icon or secondary text.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -35,6 +38,14 @@ class _SplashScreenState extends State<SplashScreen>
   /// animation). The protocol asks for 2–3 seconds — 3s gives the
   /// animation room to breathe without feeling sluggish.
   static const Duration _holdDuration = Duration(seconds: 3);
+
+  /// Royal-purple matching the launcher-icon background and the logo's
+  /// own dark backdrop. Consistent across native splash + Dart splash.
+  static const Color _brandBackground = Color(0xFF3B1A4F);
+
+  /// Slightly lighter purple for the radial-glow centre — stops the
+  /// large flat backdrop from reading as muddy.
+  static const Color _brandGlow = Color(0xFF5A2C78);
 
   late final AnimationController _ctrl;
   late final Animation<double> _fade;
@@ -77,23 +88,21 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primary,
+      backgroundColor: _brandBackground,
       body: SafeArea(
         child: Stack(
           children: [
-            // Subtle radial glow behind the logo block so the splash
-            // reads as luxe rather than a flat solid.
-            Positioned.fill(
+            // Subtle radial glow behind the logo so the flat purple
+            // reads luxe rather than muddy. Colours match the logo's
+            // own internal lighting.
+            const Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: RadialGradient(
                     center: Alignment.center,
                     radius: 0.9,
-                    colors: [
-                      AppColors.primaryLight.withAlpha(120),
-                      AppColors.primary,
-                    ],
-                    stops: const [0.0, 1.0],
+                    colors: [_brandGlow, _brandBackground],
+                    stops: [0.0, 1.0],
                   ),
                 ),
               ),
@@ -103,72 +112,19 @@ class _SplashScreenState extends State<SplashScreen>
                 opacity: _fade,
                 child: ScaleTransition(
                   scale: _scale,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Ring + icon badge. The concentric circles give
-                      // the mark presence at splash scale without
-                      // needing a bespoke logo asset.
-                      Container(
-                        width: 112,
-                        height: 112,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withAlpha(22),
-                          border: Border.all(
-                            color: Colors.white.withAlpha(55),
-                            width: 1.2,
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: Container(
-                          width: 74,
-                          height: 74,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppColors.accent,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.accent.withAlpha(140),
-                                blurRadius: 32,
-                                offset: const Offset(0, 10),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.checkroom_rounded,
-                            color: Colors.white,
-                            size: 36,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 28),
-                      // Wordmark — italic serif in the hero treatment
-                      // used on the home hero banner so the brand feels
-                      // consistent between splash and first screen.
-                      Text(
-                        'Vastrahub',
-                        style: GoogleFonts.newsreader(
-                          fontSize: 46,
-                          fontStyle: FontStyle.italic,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          letterSpacing: 0.5,
-                          height: 1.0,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Tagline in sans to balance the italic wordmark.
-                      Text(
-                        'BESPOKE FASHION · DELIVERED',
-                        style: GoogleFonts.manrope(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white.withAlpha(200),
-                          letterSpacing: 2.4,
-                        ),
-                      ),
-                    ],
+                  // Render the Vastrahub brand mark as-is — no extra
+                  // wordmark or tagline around it, since the logo
+                  // already contains "वस्त्र Hub" + "FASHION FOR EVERY
+                  // YOU". cacheWidth/Height keep the decoded bitmap at
+                  // display size so we don't blow 4MB of memory on a
+                  // 1024² source when we only need ~260 points.
+                  child: Image.asset(
+                    'assets/branding/vastrahub_icon.png',
+                    width: 260,
+                    height: 260,
+                    fit: BoxFit.contain,
+                    cacheWidth: 520,
+                    cacheHeight: 520,
                   ),
                 ),
               ),

@@ -76,6 +76,11 @@ dev_dependencies:
   # Generates every iOS + Android launcher icon size from a single
   # source PNG. Run with: dart run flutter_launcher_icons
   flutter_launcher_icons: ^0.14.1
+  # Generates the native pre-frame splash (shown for a few frames
+  # before the Flutter engine boots) so there's no white flash between
+  # OS launch and our animated Dart SplashScreen taking over. Run with:
+  #   dart run flutter_native_splash:create
+  flutter_native_splash: ^2.4.1
 
 # ── Launcher-icon generation ──
 # Source image: assets/branding/vastrahub_icon.png (1024x1024, square).
@@ -87,6 +92,23 @@ flutter_launcher_icons:
   ios: true
   remove_alpha_ios: true
   background_color_ios: "#3B1A4F"  # royal purple behind the logo
+
+# ── Native pre-frame splash ──
+# Shown for the handful of frames between the OS launch and the Flutter
+# engine being ready to paint. Keeping the background (#3B1A4F) and the
+# logo identical to the animated Dart SplashScreen means the two stages
+# read as one continuous moment — no jarring colour or logo swap.
+#
+# Android 12+ uses a separate splash spec (the OS itself enforces the
+# layout), so we configure it explicitly with the same assets.
+#
+# Regenerate with:  dart run flutter_native_splash:create
+flutter_native_splash:
+  color: "#3B1A4F"
+  image: assets/branding/vastrahub_icon.png
+  android_12:
+    color: "#3B1A4F"
+    image: assets/branding/vastrahub_icon.png
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
