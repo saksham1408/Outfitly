@@ -157,4 +157,61 @@ class SavedAddress {
             DateTime.tryParse(json['createdAt'] as String? ?? '') ??
                 DateTime.now(),
       );
+
+  // ───────────────────────────────────────────────────────────────
+  // Supabase row ↔ model serialization.
+  //
+  // The on-wire shape uses snake_case (`recipient_name`, `is_selected`)
+  // and server-side defaults for `user_id` + `created_at`. We keep the
+  // older camelCase JSON helpers above for the SharedPreferences cache
+  // path so a cold launch can paint instantly while the network fetch
+  // resolves.
+  // ───────────────────────────────────────────────────────────────
+
+  /// Parse a `public.user_addresses` row (PostgREST response). Missing
+  /// optional columns tolerate null so the factory survives schema
+  /// drift during migrations.
+  factory SavedAddress.fromRow(Map<String, dynamic> row) => SavedAddress(
+        id: row['id'] as String,
+        label: AddressLabelX.fromStorage(row['label'] as String?),
+        recipientName: (row['recipient_name'] as String?) ?? '',
+        pincode: (row['pincode'] as String?) ?? '',
+        city: (row['city'] as String?) ?? '',
+        addressLine1: (row['address_line1'] as String?) ?? '',
+        addressLine2: row['address_line2'] as String?,
+        state: row['state'] as String?,
+        phone: row['phone'] as String?,
+        latitude: (row['latitude'] as num?)?.toDouble() ?? 0,
+        longitude: (row['longitude'] as num?)?.toDouble() ?? 0,
+        createdAt:
+            DateTime.tryParse(row['created_at'] as String? ?? '') ??
+                DateTime.now(),
+      );
+
+  /// Produce a PostgREST-ready payload for insert/upsert.
+  ///
+  /// * `user_id` is omitted — Supabase defaults it to `auth.uid()`.
+  /// * `created_at` / `updated_at` are omitted — server-managed.
+  /// * `is_selected` only included when [isSelected] is non-null; the
+  ///   AddressService passes `true` when marking selection and leaves
+  ///   it unset on pure edits so the trigger doesn't re-fire.
+  /// * Zero lat/lng (our sentinel for "manually entered, no GPS") is
+  ///   written as null so the column reflects actual knowledge.
+  Map<String, dynamic> toRow({bool? isSelected}) {
+    final hasCoords = latitude != 0 || longitude != 0;
+    return {
+      'id': id,
+      'label': label.storageValue,
+      'recipient_name': recipientName,
+      'phone': phone,
+      'pincode': pincode,
+      'address_line1': addressLine1,
+      'address_line2': addressLine2,
+      'city': city,
+      'state': state,
+      'latitude': hasCoords ? latitude : null,
+      'longitude': hasCoords ? longitude : null,
+      if (isSelected != null) 'is_selected': isSelected,
+    };
+  }
 }
