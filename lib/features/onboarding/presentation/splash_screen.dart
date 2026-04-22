@@ -147,7 +147,7 @@ class _SplashScreenState extends State<SplashScreen>
                       // used on the home hero banner so the brand feels
                       // consistent between splash and first screen.
                       Text(
-                        'Outfitly',
+                        'Vastrahub',
                         style: GoogleFonts.newsreader(
                           fontSize: 46,
                           fontStyle: FontStyle.italic,
