@@ -451,7 +451,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   // ── Footer ──
                   Center(
                     child: Text(
-                      '© MMXXIV OUTFITLY • BESPOKE TAILORING',
+                      '© MMXXIV VASTRAHUB • BESPOKE TAILORING',
                       style: GoogleFonts.manrope(
                         fontSize: 9,
                         letterSpacing: 4,
