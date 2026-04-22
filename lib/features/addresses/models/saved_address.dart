@@ -6,10 +6,18 @@ import 'package:flutter/foundation.dart';
 enum AddressLabel { home, work, other }
 
 extension AddressLabelX on AddressLabel {
+  /// Uppercase tag form — used in small badge pills.
   String get displayLabel => switch (this) {
         AddressLabel.home => 'HOME',
         AddressLabel.work => 'WORK',
         AddressLabel.other => 'OTHER',
+      };
+
+  /// Title-case form — used inline in the home pill button.
+  String get titleCase => switch (this) {
+        AddressLabel.home => 'Home',
+        AddressLabel.work => 'Work',
+        AddressLabel.other => 'Other',
       };
 
   String get storageValue => name; // home / work / other
@@ -30,6 +38,10 @@ extension AddressLabelX on AddressLabel {
 /// persisted to SharedPreferences via [AddressService]. When we later
 /// move this to Supabase the JSON shape here is already close enough to
 /// a row to make the migration painless.
+///
+/// The structured fields ([state], [phone]) were added in v2. They're
+/// nullable so rows cached by older builds deserialize cleanly without
+/// a schema migration.
 @immutable
 class SavedAddress {
   final String id;
@@ -39,6 +51,8 @@ class SavedAddress {
   final String city;
   final String addressLine1;
   final String? addressLine2;
+  final String? state;
+  final String? phone;
   final double latitude;
   final double longitude;
   final DateTime createdAt;
@@ -54,6 +68,8 @@ class SavedAddress {
     required this.longitude,
     required this.createdAt,
     this.addressLine2,
+    this.state,
+    this.phone,
   });
 
   /// The short line we show on the home chip — e.g. "Jaipur 302017".
@@ -74,6 +90,15 @@ class SavedAddress {
     return lines.join(', ');
   }
 
+  /// One-liner shown under the city/pincode in the picker card —
+  /// "12, MG Road · Near Metro · Ashok Vihar".
+  String get detailLine {
+    final parts = <String>[];
+    if (addressLine1.trim().isNotEmpty) parts.add(addressLine1.trim());
+    if ((addressLine2 ?? '').trim().isNotEmpty) parts.add(addressLine2!.trim());
+    return parts.join(' · ');
+  }
+
   SavedAddress copyWith({
     AddressLabel? label,
     String? recipientName,
@@ -81,6 +106,8 @@ class SavedAddress {
     String? city,
     String? addressLine1,
     String? addressLine2,
+    String? state,
+    String? phone,
     double? latitude,
     double? longitude,
   }) =>
@@ -92,6 +119,8 @@ class SavedAddress {
         city: city ?? this.city,
         addressLine1: addressLine1 ?? this.addressLine1,
         addressLine2: addressLine2 ?? this.addressLine2,
+        state: state ?? this.state,
+        phone: phone ?? this.phone,
         latitude: latitude ?? this.latitude,
         longitude: longitude ?? this.longitude,
         createdAt: createdAt,
@@ -105,6 +134,8 @@ class SavedAddress {
         'city': city,
         'addressLine1': addressLine1,
         'addressLine2': addressLine2,
+        'state': state,
+        'phone': phone,
         'latitude': latitude,
         'longitude': longitude,
         'createdAt': createdAt.toIso8601String(),
@@ -118,6 +149,8 @@ class SavedAddress {
         city: (json['city'] as String?) ?? '',
         addressLine1: (json['addressLine1'] as String?) ?? '',
         addressLine2: json['addressLine2'] as String?,
+        state: json['state'] as String?,
+        phone: json['phone'] as String?,
         latitude: (json['latitude'] as num?)?.toDouble() ?? 0,
         longitude: (json['longitude'] as num?)?.toDouble() ?? 0,
         createdAt:

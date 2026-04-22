@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/location/location_service.dart';
 import '../../../../core/theme/theme.dart';
+import '../../../addresses/data/address_service.dart';
 import '../../data/repositories/catalog_repository.dart';
 import '../../domain/models/app_category.dart';
 import '../../domain/models/sub_category.dart';
@@ -57,6 +58,9 @@ class _HomeScreenState extends State<HomeScreen>
     // Deliberately unawaited — we never want the feed to wait on
     // location.
     LocationService.instance.ensure();
+    // Hydrate saved addresses so the delivery pill shows the
+    // currently-selected one immediately on cold launch (no flicker).
+    AddressService.instance.ensureLoaded();
   }
 
   @override

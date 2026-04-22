@@ -3,6 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../../core/location/location_service.dart';
 import '../../../../../core/theme/theme.dart';
+import '../../../../addresses/data/address_service.dart';
+import '../../../../addresses/models/saved_address.dart';
+import '../../../../addresses/presentation/delivery_address_sheet.dart';
 
 /// Myntra-style sticky header for the home feed.
 /// Contains: Top row (location + icons) + Search bar + Gender tabs.
@@ -27,10 +30,9 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
     this.tabLabels = const ['MEN', 'WOMEN', 'KIDS'],
   });
 
-  // Heights per row. The top row has to host a two-line label ("Deliver
-  // to" + a bold city line with a chevron) so 60dp keeps the chevron
-  // from crowding the baseline when the city name is long.
-  static const double _topRowHeight = 60;
+  // The top row now hosts a single-line pill button, so 56dp is enough
+  // breathing room. Search + tabs are unchanged.
+  static const double _topRowHeight = 56;
   static const double _searchHeight = 56;
   static const double _tabsHeight = 48;
   static const double _totalHeight =
@@ -77,17 +79,14 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
                   ),
                   child: Row(
                     children: [
-                      // Location picker — live, bound to LocationService.
-                      Expanded(
-                        child: _LiveDeliveryChip(
-                          onOpenSettings: () =>
-                              LocationService.instance.openAppSettings(),
-                          onOpenLocationServices: () =>
-                              LocationService.instance.openLocationSettings(),
-                        ),
-                      ),
+                      // Premium pill: tap opens the delivery-address
+                      // bottom sheet. Label pulls from the selected
+                      // saved address when available, else falls back
+                      // to the detected city / a prompt.
+                      Flexible(child: _DeliveryPillButton()),
 
                       // Right-side actions
+                      const SizedBox(width: 8),
                       _iconWithBadge(
                         icon: Icons.notifications_none_rounded,
                         badge: '3',
@@ -103,12 +102,15 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
                         badge: '2',
                         onTap: onCartTap,
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 4),
                       IconButton(
                         onPressed: onProfileTap,
+                        padding: EdgeInsets.zero,
+                        constraints:
+                            const BoxConstraints(minWidth: 36, minHeight: 36),
                         icon: const Icon(
                           Icons.person_outline_rounded,
-                          size: 24,
+                          size: 22,
                           color: AppColors.primary,
                         ),
                       ),
@@ -238,11 +240,13 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
       children: [
         IconButton(
           onPressed: onTap,
-          icon: Icon(icon, size: 24, color: AppColors.primary),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          icon: Icon(icon, size: 22, color: AppColors.primary),
         ),
         Positioned(
-          top: 6,
-          right: 4,
+          top: 2,
+          right: 0,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
             decoration: BoxDecoration(
@@ -270,210 +274,185 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
   }
 }
 
-/// Live "Deliver to …" chip that listens to [LocationService]. Tapping
-/// the chip triggers a refresh (first-tap also drives the OS permission
-/// prompt). State handling:
+/// Premium, single-line pill showing the active delivery label with a
+/// down-chevron. Tapping opens [showDeliveryAddressSheet] — the sheet
+/// itself owns the GPS / saved-addresses / add-new flow.
 ///
-/// | LocationStatus       | Subtitle rendered           |
-/// |----------------------|-----------------------------|
-/// | idle                 | "Tap to detect location"    |
-/// | loading              | animated "Detecting…"        |
-/// | resolved + location  | "`City Pincode`"            |
-/// | denied               | "Enable location access"    |
-/// | servicesDisabled     | "Turn on Location Services" |
-/// | error                | "Tap to retry"              |
-class _LiveDeliveryChip extends StatelessWidget {
-  final VoidCallback onOpenSettings;
-  final VoidCallback onOpenLocationServices;
-
-  const _LiveDeliveryChip({
-    required this.onOpenSettings,
-    required this.onOpenLocationServices,
-  });
-
-  Future<void> _handleTap(BuildContext context) async {
-    final svc = LocationService.instance;
-    final status = svc.status.value;
-    // Permission was permanently refused — can't re-prompt from Dart,
-    // only nudge the user into Settings.
-    if (status == LocationStatus.denied) {
-      final go = await _askToOpenSettings(
-        context,
-        title: 'Location access needed',
-        body:
-            'Enable location for VASTRAHUB in Settings so we can pre-fill your delivery address.',
-      );
-      if (go) onOpenSettings();
-      return;
-    }
-    if (status == LocationStatus.servicesDisabled) {
-      final go = await _askToOpenSettings(
-        context,
-        title: 'Location services are off',
-        body:
-            'Turn on Location Services in Settings so VASTRAHUB can detect your city.',
-      );
-      if (go) onOpenLocationServices();
-      return;
-    }
-    // Anything else → re-run the fetch. This is what drives the first
-    // permission prompt too.
-    await svc.refresh();
-  }
-
-  Future<bool> _askToOpenSettings(
-    BuildContext context, {
-    required String title,
-    required String body,
-  }) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: Text(body),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Not now'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Open Settings'),
-          ),
-        ],
-      ),
+/// Label priority:
+///   1. Selected saved address → e.g. "Home" or "Work"
+///   2. Detected city (LocationService) → e.g. "Jaipur"
+///   3. Fallback → "Set location"
+class _DeliveryPillButton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<List<SavedAddress>>(
+      valueListenable: AddressService.instance.addresses,
+      builder: (context, addresses, _) {
+        return ValueListenableBuilder<String?>(
+          valueListenable: AddressService.instance.selectedId,
+          builder: (context, selectedId, __) {
+            return ValueListenableBuilder<LocationStatus>(
+              valueListenable: LocationService.instance.status,
+              builder: (context, status, ___) {
+                return ValueListenableBuilder<DeliveryLocation?>(
+                  valueListenable: LocationService.instance.location,
+                  builder: (context, loc, ____) {
+                    final selected = _selectedFromList(addresses, selectedId);
+                    final label = _label(selected, loc, status);
+                    final subtitle = _subtitle(selected, loc, status);
+                    return _PillShell(
+                      label: label,
+                      subtitle: subtitle,
+                      showSpinner: status == LocationStatus.loading &&
+                          selected == null,
+                      onTap: () => showDeliveryAddressSheet(context),
+                    );
+                  },
+                );
+              },
+            );
+          },
+        );
+      },
     );
-    return result ?? false;
   }
+
+  SavedAddress? _selectedFromList(List<SavedAddress> list, String? id) {
+    if (id == null) return null;
+    for (final a in list) {
+      if (a.id == id) return a;
+    }
+    return null;
+  }
+
+  String _label(
+    SavedAddress? selected,
+    DeliveryLocation? loc,
+    LocationStatus status,
+  ) {
+    if (selected != null) return selected.label.titleCase;
+    if (loc != null && loc.city.trim().isNotEmpty) return loc.city.trim();
+    return switch (status) {
+      LocationStatus.loading => 'Detecting…',
+      _ => 'Set location',
+    };
+  }
+
+  String? _subtitle(
+    SavedAddress? selected,
+    DeliveryLocation? loc,
+    LocationStatus status,
+  ) {
+    if (selected != null) return selected.shortLabel;
+    if (loc != null) {
+      final trimmed = loc.displayLabel.trim();
+      return trimmed.isEmpty ? null : trimmed;
+    }
+    return switch (status) {
+      LocationStatus.denied => 'Enable location access',
+      LocationStatus.servicesDisabled => 'Location services off',
+      LocationStatus.error => 'Tap to choose',
+      _ => 'Tap to pick your address',
+    };
+  }
+}
+
+class _PillShell extends StatelessWidget {
+  final String label;
+  final String? subtitle;
+  final bool showSpinner;
+  final VoidCallback onTap;
+
+  const _PillShell({
+    required this.label,
+    required this.subtitle,
+    required this.showSpinner,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.transparent,
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(24),
       child: InkWell(
-        onTap: () => _handleTap(context),
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          // Horizontal breathing room so the ripple has a halo, but no
-          // vertical padding — the parent row is height-constrained and
-          // the 10pt label + 13pt+18pt row already fill it tightly.
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.location_on_outlined,
-                size: 20,
-                color: AppColors.primary,
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: AppColors.border.withAlpha(100),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.shadow.withAlpha(18),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
               ),
-              const SizedBox(width: 4),
-              Expanded(
+            ],
+          ),
+          padding: const EdgeInsets.fromLTRB(10, 6, 8, 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (showSpinner)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.6,
+                    color: AppColors.primary,
+                  ),
+                )
+              else
+                const Icon(
+                  Icons.location_on_outlined,
+                  size: 18,
+                  color: AppColors.primary,
+                ),
+              const SizedBox(width: 6),
+              Flexible(
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Deliver to',
+                      label,
                       style: GoogleFonts.manrope(
-                        fontSize: 10,
-                        color: AppColors.textTertiary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                        height: 1.1,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    ValueListenableBuilder<LocationStatus>(
-                      valueListenable: LocationService.instance.status,
-                      builder: (context, status, _) {
-                        return ValueListenableBuilder<DeliveryLocation?>(
-                          valueListenable: LocationService.instance.location,
-                          builder: (context, loc, __) =>
-                              _buildSubtitle(status, loc),
-                        );
-                      },
-                    ),
+                    if (subtitle != null && subtitle!.isNotEmpty)
+                      Text(
+                        subtitle!,
+                        style: GoogleFonts.manrope(
+                          fontSize: 10.5,
+                          color: AppColors.textTertiary,
+                          height: 1.15,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                   ],
                 ),
+              ),
+              const SizedBox(width: 2),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: AppColors.primary,
               ),
             ],
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildSubtitle(LocationStatus status, DeliveryLocation? loc) {
-    if (status == LocationStatus.loading) {
-      return Row(
-        children: [
-          SizedBox(
-            width: 10,
-            height: 10,
-            child: CircularProgressIndicator(
-              strokeWidth: 1.4,
-              color: AppColors.primary.withAlpha(160),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            'Detecting…',
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: AppColors.primary,
-            ),
-          ),
-        ],
-      );
-    }
-
-    // Show cached/resolved label whenever we have one — even for error
-    // states, a stale "Mumbai 400001" is more useful than a hint.
-    if (loc != null && status != LocationStatus.denied &&
-        status != LocationStatus.servicesDisabled) {
-      return Row(
-        children: [
-          Flexible(
-            child: Text(
-              loc.displayLabel,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            size: 18,
-            color: AppColors.primary,
-          ),
-        ],
-      );
-    }
-
-    final hint = switch (status) {
-      LocationStatus.denied => 'Enable location access',
-      LocationStatus.servicesDisabled => 'Turn on Location Services',
-      LocationStatus.error => 'Tap to retry',
-      _ => 'Tap to detect location',
-    };
-    return Row(
-      children: [
-        Flexible(
-          child: Text(
-            hint,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: AppColors.primary,
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        const Icon(
-          Icons.keyboard_arrow_down_rounded,
-          size: 18,
-          color: AppColors.primary,
-        ),
-      ],
     );
   }
 }
