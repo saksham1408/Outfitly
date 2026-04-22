@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/location/location_service.dart';
 import '../../../core/theme/theme.dart';
 import '../data/address_service.dart';
+import '../domain/address_prefill.dart';
+import '../domain/india_locations.dart';
 import '../models/saved_address.dart';
 
 /// Brand-scoped "pink" accent for the primary CTA inside the sheet.
@@ -110,7 +113,9 @@ class _DeliveryAddressSheet extends StatelessWidget {
                       const SliverToBoxAdapter(child: SizedBox(height: 24)),
                       SliverToBoxAdapter(
                         child: _UseCurrentLocationCard(
-                          onTap: () => _goToAddAddress(context),
+                          onResolved: (prefill) =>
+                              _goToAddAddress(context, prefill: prefill),
+                          onFallbackTap: () => _goToAddAddress(context),
                         ),
                       ),
                       SliverToBoxAdapter(
@@ -127,13 +132,13 @@ class _DeliveryAddressSheet extends StatelessWidget {
     );
   }
 
-  void _goToAddAddress(BuildContext context) {
+  void _goToAddAddress(BuildContext context, {AddressPrefill? prefill}) {
     _pop(context);
     // Short delay lets the bottom sheet close animation finish before
     // the next route pushes — avoids a visual stutter on iOS.
     Future<void>.delayed(const Duration(milliseconds: 120), () {
       if (!context.mounted) return;
-      context.pushNamed('addAddress');
+      context.pushNamed('addAddress', extra: prefill);
     });
   }
 
@@ -457,9 +462,89 @@ class _Badge extends StatelessWidget {
   }
 }
 
-class _UseCurrentLocationCard extends StatelessWidget {
-  final VoidCallback onTap;
-  const _UseCurrentLocationCard({required this.onTap});
+/// Primary "Use Current Location" card. Tapping runs the live GPS
+/// pipeline via [LocationService.resolveOnce] — on success it hands
+/// the geocoded [AddressPrefill] back to the sheet so the Add Address
+/// form opens pre-filled with city/state/pincode. On failure we fall
+/// back to plain manual entry and show the reason in a snackbar.
+class _UseCurrentLocationCard extends StatefulWidget {
+  /// Fired when GPS resolves — the sheet closes itself and pushes the
+  /// Add Address screen with the supplied prefill as `state.extra`.
+  final ValueChanged<AddressPrefill> onResolved;
+
+  /// Fallback for permanent-deny / services-off: the sheet still
+  /// pushes Add Address, just without any prefill.
+  final VoidCallback onFallbackTap;
+
+  const _UseCurrentLocationCard({
+    required this.onResolved,
+    required this.onFallbackTap,
+  });
+
+  @override
+  State<_UseCurrentLocationCard> createState() =>
+      _UseCurrentLocationCardState();
+}
+
+class _UseCurrentLocationCardState extends State<_UseCurrentLocationCard> {
+  bool _busy = false;
+
+  Future<void> _handleTap() async {
+    if (_busy) return;
+    // Capture the messenger *before* we potentially unmount by closing
+    // the sheet — showing a snackbar from an unmounted context throws.
+    final messenger = ScaffoldMessenger.maybeOf(context);
+
+    setState(() => _busy = true);
+    try {
+      final resolved =
+          await LocationService.instance.resolveOnce();
+      // Normalise the geocoded values to the seed-dropdown options so
+      // the Add Address form shows a matching selection, not raw
+      // "MH"/"Maharashtra, India" junk.
+      final seedState =
+          matchSeedState(resolved.region ?? '') ?? resolved.region;
+      final seedCity = seedState == null
+          ? null
+          : matchSeedCity(seedState, resolved.city) ?? resolved.city;
+
+      final prefill = AddressPrefill(
+        city: seedCity,
+        state: seedState,
+        pincode: resolved.postalCode,
+        latitude: resolved.latitude,
+        longitude: resolved.longitude,
+      );
+      if (!mounted) return;
+      widget.onResolved(prefill);
+    } on StateError catch (e) {
+      messenger?.showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.error,
+          content: Text(
+            e.message,
+            style: GoogleFonts.manrope(color: Colors.white),
+          ),
+        ),
+      );
+      if (mounted) widget.onFallbackTap();
+    } catch (e) {
+      messenger?.showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.error,
+          content: Text(
+            'Could not detect location: $e',
+            style: GoogleFonts.manrope(color: Colors.white),
+          ),
+        ),
+      );
+      if (mounted) widget.onFallbackTap();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -469,7 +554,7 @@ class _UseCurrentLocationCard extends StatelessWidget {
         color: AppColors.primary,
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
-          onTap: onTap,
+          onTap: _handleTap,
           borderRadius: BorderRadius.circular(16),
           child: Container(
             padding: const EdgeInsets.fromLTRB(16, 16, 12, 16),
@@ -482,11 +567,19 @@ class _UseCurrentLocationCard extends StatelessWidget {
                     color: Colors.white.withAlpha(36),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
-                    Icons.my_location_rounded,
-                    size: 20,
-                    color: Colors.white,
-                  ),
+                  child: _busy
+                      ? const Padding(
+                          padding: EdgeInsets.all(10),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 1.8,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.my_location_rounded,
+                          size: 20,
+                          color: Colors.white,
+                        ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -494,7 +587,9 @@ class _UseCurrentLocationCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Use Current Location',
+                        _busy
+                            ? 'Detecting location…'
+                            : 'Use Current Location',
                         style: GoogleFonts.manrope(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
@@ -503,7 +598,9 @@ class _UseCurrentLocationCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Detect your address using GPS',
+                        _busy
+                            ? 'Fetching GPS + address'
+                            : 'Detect your address using GPS',
                         style: GoogleFonts.manrope(
                           fontSize: 12,
                           color: Colors.white.withAlpha(200),
