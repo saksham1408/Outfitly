@@ -5,6 +5,7 @@ import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/auth/screens/otp_verification_screen.dart';
 import '../../features/auth/screens/forgot_password_screen.dart';
+import '../../features/onboarding/presentation/splash_screen.dart';
 import '../../features/onboarding/style_quiz_screen.dart';
 import '../../features/catalog/catalog_screen.dart';
 import '../../features/catalog/presentation/subcategory_plp/subcategory_screen.dart';
@@ -57,12 +58,20 @@ abstract final class AppRouter {
 
   static final GoRouter router = GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: '/login',
+    // Cold launch always starts on the animated splash. The splash
+    // itself decides (after 3s) whether the user lands on /home or
+    // /login based on their Supabase session.
+    initialLocation: '/',
     debugLogDiagnostics: true,
     redirect: (context, state) {
       final session = AppSupabase.client.auth.currentSession;
       final loggedIn = session != null;
       final path = state.matchedLocation;
+
+      // Splash is auth-agnostic — we never redirect away from it.
+      // Letting it render unconditionally avoids a flicker where the
+      // router would punt signed-in users straight to /home.
+      if (path == '/') return null;
 
       if (!loggedIn && !_publicRoutes.contains(path)) return '/login';
       if (loggedIn && _publicRoutes.contains(path)) return '/home';
@@ -70,6 +79,16 @@ abstract final class AppRouter {
       return null;
     },
     routes: [
+      // ── Splash ──
+      // The very first screen on launch. Uses `context.go('/home')` or
+      // `/login` after its 3-second timer to REPLACE itself in the
+      // stack — so the back gesture can never return here.
+      GoRoute(
+        path: '/',
+        name: 'splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
+
       // ── Auth ──
       GoRoute(
         path: '/login',
