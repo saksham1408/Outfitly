@@ -83,21 +83,24 @@ dev_dependencies:
   flutter_native_splash: ^2.4.1
 
 # ── Launcher-icon generation ──
-# Source image: assets/branding/vastrahub_icon.png (1024x1024, square).
-# iOS requires an opaque icon (no alpha), which is why remove_alpha_ios:
-# true flattens any transparency onto the configured background.
+# Drives the home-screen app tile only (Android mipmap + iOS AppIcon).
+# Uses the full-colour purple/gold Vastrahub mark so the icon stays
+# vibrant next to other apps on the home screen. iOS requires an opaque
+# icon (no alpha) — remove_alpha_ios flattens any transparency onto the
+# configured background colour.
 flutter_launcher_icons:
   image_path: "assets/branding/vastrahub_icon.png"
   android: true
   ios: true
   remove_alpha_ios: true
-  background_color_ios: "#FFFFFF"  # white canvas matches the logo artwork
+  background_color_ios: "#3B1A4F"  # royal purple behind the mark
 
 # ── Native pre-frame splash ──
 # Shown for the handful of frames between the OS launch and the Flutter
-# engine being ready to paint. Keeping the background (#FFFFFF) and the
-# logo identical to the animated Dart SplashScreen means the two stages
-# read as one continuous moment — no jarring colour or logo swap.
+# engine being ready to paint. Uses a DIFFERENT source from the launcher
+# on purpose: the minimalist black-on-white mark (vastrahub_splash.png)
+# reads cleanly at full-screen sizes and matches the animated Dart
+# SplashScreen, while the launcher keeps its richer full-colour icon.
 #
 # Android 12+ uses a separate splash spec (the OS itself enforces the
 # layout), so we configure it explicitly with the same assets.
@@ -105,10 +108,10 @@ flutter_launcher_icons:
 # Regenerate with:  dart run flutter_native_splash:create
 flutter_native_splash:
   color: "#FFFFFF"
-  image: assets/branding/vastrahub_icon.png
+  image: assets/branding/vastrahub_splash.png
   android_12:
     color: "#FFFFFF"
-    image: assets/branding/vastrahub_icon.png
+    image: assets/branding/vastrahub_splash.png
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
