@@ -36,6 +36,7 @@ import '../../features/profile/screens/profile_screen.dart';
 import '../../features/search/screens/search_screen.dart';
 import '../../features/wishlist/screens/wishlist_screen.dart';
 import '../../features/account/presentation/add_address_screen.dart';
+import '../../features/addresses/domain/address_prefill.dart';
 
 /// Central route configuration for the app.
 abstract final class AppRouter {
@@ -281,7 +282,11 @@ abstract final class AppRouter {
       GoRoute(
         path: '/account/add-address',
         name: 'addAddress',
-        builder: (context, state) => const AddAddressScreen(),
+        builder: (context, state) => AddAddressScreen(
+          prefill: state.extra is AddressPrefill
+              ? state.extra as AddressPrefill
+              : null,
+        ),
       ),
     ],
   );

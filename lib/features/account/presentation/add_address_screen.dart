@@ -4,18 +4,27 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/theme.dart';
 import '../../addresses/data/address_service.dart';
+import '../../addresses/domain/address_prefill.dart';
+import '../../addresses/domain/india_locations.dart';
 import '../../addresses/models/saved_address.dart';
 
 /// Manual "Add Address" form. The user can reach it from the delivery
 /// address picker sheet (via the pink "Add New" pill or the "Use
-/// Current Location" card — GPS fetch is stubbed for Phase 1).
+/// Current Location" card — the latter arrives with an [AddressPrefill]
+/// populated from GPS + reverse geocoding).
 ///
 /// On submit we persist via [AddressService] (SharedPreferences-backed)
 /// and pop back to whatever screen pushed us. The address picker sheet
 /// listens to [AddressService.addresses] so the new card shows up
 /// instantly on the next open.
 class AddAddressScreen extends StatefulWidget {
-  const AddAddressScreen({super.key});
+  /// Optional snapshot seeded by the caller — typically the GPS result
+  /// from the "Use Current Location" flow. Only city/state/pincode are
+  /// applied to the form; lat/lng are threaded through to the saved
+  /// row so delivery ETAs can use them later.
+  final AddressPrefill? prefill;
+
+  const AddAddressScreen({super.key, this.prefill});
 
   @override
   State<AddAddressScreen> createState() => _AddAddressScreenState();
@@ -32,12 +41,36 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
   final _streetCtrl = TextEditingController();
   final _landmarkCtrl = TextEditingController();
   final _areaCtrl = TextEditingController();
-  final _cityCtrl = TextEditingController();
-  final _stateCtrl = TextEditingController();
   final _pincodeCtrl = TextEditingController();
+
+  // Dropdown selections — null until the user picks (or a prefill
+  // supplies them on mount).
+  String? _selectedState;
+  String? _selectedCity;
 
   AddressLabel _selectedLabel = AddressLabel.home;
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _applyPrefill(widget.prefill);
+  }
+
+  void _applyPrefill(AddressPrefill? p) {
+    if (p == null) return;
+    if ((p.pincode ?? '').isNotEmpty) _pincodeCtrl.text = p.pincode!;
+
+    final seededState =
+        p.state != null ? matchSeedState(p.state!) ?? p.state : null;
+    if (seededState != null && indianStates.contains(seededState)) {
+      _selectedState = seededState;
+      if ((p.city ?? '').isNotEmpty) {
+        final matchedCity = matchSeedCity(seededState, p.city!);
+        if (matchedCity != null) _selectedCity = matchedCity;
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -47,8 +80,6 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
     _streetCtrl.dispose();
     _landmarkCtrl.dispose();
     _areaCtrl.dispose();
-    _cityCtrl.dispose();
-    _stateCtrl.dispose();
     _pincodeCtrl.dispose();
     super.dispose();
   }
@@ -56,6 +87,19 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
   Future<void> _handleSave() async {
     FocusManager.instance.primaryFocus?.unfocus();
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedState == null || _selectedCity == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.error,
+          content: Text(
+            'Please pick a state and city.',
+            style: GoogleFonts.manrope(color: Colors.white),
+          ),
+        ),
+      );
+      return;
+    }
 
     setState(() => _saving = true);
     try {
@@ -74,11 +118,13 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
         label: _selectedLabel,
         recipientName: _recipientCtrl.text.trim(),
         pincode: _pincodeCtrl.text.trim(),
-        city: _cityCtrl.text.trim(),
+        city: _selectedCity!,
         addressLine1: addressLine1,
         addressLine2: addressLine2.isEmpty ? null : addressLine2,
-        state: _stateCtrl.text.trim().isEmpty ? null : _stateCtrl.text.trim(),
+        state: _selectedState,
         phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+        latitude: widget.prefill?.latitude ?? 0,
+        longitude: widget.prefill?.longitude ?? 0,
       );
 
       if (!mounted) return;
@@ -111,6 +157,8 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final prefilled = widget.prefill != null &&
+        (widget.prefill!.city != null || widget.prefill!.state != null);
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -140,6 +188,9 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
+            if (prefilled) _PrefillBanner(prefill: widget.prefill!),
+            if (prefilled) const SizedBox(height: 20),
+
             _SectionHeader(title: 'Contact details'),
             const SizedBox(height: 10),
             _LabelledField(
@@ -232,31 +283,35 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
             ),
             const SizedBox(height: 14),
 
-            // City + State side-by-side. Left as text inputs for
-            // Phase 1 — Phase 2 will swap these for dropdowns seeded
-            // from the Indian states/cities list served from Supabase.
+            // State + City — non-editable dropdowns seeded from
+            // `india_locations.dart`. State drives the city list; we
+            // clear the city whenever state changes so stale pairings
+            // can't sneak through.
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: _LabelledField(
-                    label: 'City',
-                    child: _inputField(
-                      controller: _cityCtrl,
-                      hint: 'e.g. Jaipur',
-                      textCapitalization: TextCapitalization.words,
-                      validator: _requireNonEmpty,
+                    label: 'State',
+                    child: _StateDropdown(
+                      value: _selectedState,
+                      onChanged: (s) {
+                        setState(() {
+                          _selectedState = s;
+                          _selectedCity = null;
+                        });
+                      },
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _LabelledField(
-                    label: 'State',
-                    child: _inputField(
-                      controller: _stateCtrl,
-                      hint: 'e.g. Rajasthan',
-                      textCapitalization: TextCapitalization.words,
-                      validator: _requireNonEmpty,
+                    label: 'City',
+                    child: _CityDropdown(
+                      state: _selectedState,
+                      value: _selectedCity,
+                      onChanged: (c) => setState(() => _selectedCity = c),
                     ),
                   ),
                 ),
@@ -352,38 +407,129 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
         color: AppColors.textPrimary,
         fontWeight: FontWeight.w500,
       ),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: GoogleFonts.manrope(
-          fontSize: 13,
-          color: AppColors.textTertiary,
-        ),
-        filled: true,
-        fillColor: AppColors.surface,
-        isDense: true,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.border.withAlpha(80)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.primary, width: 1.4),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.error),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.error, width: 1.4),
-        ),
-        errorStyle: GoogleFonts.manrope(
-          fontSize: 11,
-          color: AppColors.error,
-        ),
+      decoration: _decoration(hint),
+    );
+  }
+}
+
+/// Shared `InputDecoration` so every field (text + dropdown) lines up
+/// pixel-for-pixel.
+InputDecoration _decoration(String hint) => InputDecoration(
+      hintText: hint,
+      hintStyle: GoogleFonts.manrope(
+        fontSize: 13,
+        color: AppColors.textTertiary,
       ),
+      filled: true,
+      fillColor: AppColors.surface,
+      isDense: true,
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: AppColors.border.withAlpha(80)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.error),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.error, width: 1.4),
+      ),
+      errorStyle: GoogleFonts.manrope(
+        fontSize: 11,
+        color: AppColors.error,
+      ),
+    );
+
+class _StateDropdown extends StatelessWidget {
+  final String? value;
+  final ValueChanged<String?> onChanged;
+
+  const _StateDropdown({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      value: value,
+      isExpanded: true,
+      icon: const Icon(
+        Icons.keyboard_arrow_down_rounded,
+        size: 20,
+        color: AppColors.textSecondary,
+      ),
+      decoration: _decoration('Select state'),
+      style: GoogleFonts.manrope(
+        fontSize: 14,
+        color: AppColors.textPrimary,
+        fontWeight: FontWeight.w500,
+      ),
+      validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+      items: [
+        for (final s in indianStates)
+          DropdownMenuItem<String>(
+            value: s,
+            child: Text(
+              s,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+      ],
+      onChanged: onChanged,
+    );
+  }
+}
+
+class _CityDropdown extends StatelessWidget {
+  final String? state;
+  final String? value;
+  final ValueChanged<String?> onChanged;
+
+  const _CityDropdown({
+    required this.state,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final options = state == null ? const <String>[] : citiesFor(state!);
+    final enabled = state != null;
+
+    return DropdownButtonFormField<String>(
+      value: value,
+      isExpanded: true,
+      icon: Icon(
+        Icons.keyboard_arrow_down_rounded,
+        size: 20,
+        color:
+            enabled ? AppColors.textSecondary : AppColors.textTertiary,
+      ),
+      decoration: _decoration(
+        enabled ? 'Select city' : 'Pick a state first',
+      ),
+      style: GoogleFonts.manrope(
+        fontSize: 14,
+        color: AppColors.textPrimary,
+        fontWeight: FontWeight.w500,
+      ),
+      validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+      items: [
+        for (final c in options)
+          DropdownMenuItem<String>(
+            value: c,
+            child: Text(
+              c,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+      ],
+      onChanged: enabled ? onChanged : null,
     );
   }
 }
@@ -511,6 +657,67 @@ class _LabelChoice extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// A soft confirmation banner shown at the top of the form when the
+/// user arrived via "Use Current Location" — lets them see at a glance
+/// that pincode/city/state have been pre-filled, and whether they need
+/// to correct anything.
+class _PrefillBanner extends StatelessWidget {
+  final AddressPrefill prefill;
+  const _PrefillBanner({required this.prefill});
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = <String>[];
+    if ((prefill.city ?? '').isNotEmpty) parts.add(prefill.city!);
+    if ((prefill.state ?? '').isNotEmpty) parts.add(prefill.state!);
+    if ((prefill.pincode ?? '').isNotEmpty) parts.add(prefill.pincode!);
+    final summary = parts.isEmpty ? 'location detected' : parts.join(', ');
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withAlpha(14),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary.withAlpha(40)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.my_location_rounded,
+            size: 18,
+            color: AppColors.primary,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Prefilled from your location',
+                  style: GoogleFonts.manrope(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  summary,
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
