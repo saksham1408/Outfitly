@@ -216,6 +216,12 @@ class _HomeScreenState extends State<HomeScreen>
           // after the subcategory row; driving engagement with the
           // wardrobe+Gemini feature is a top priority for this release.
           SliverToBoxAdapter(child: _buildDailyStylistCard()),
+          const SliverToBoxAdapter(child: SizedBox(height: 12)),
+          // Companion entry point — the generative "style a new piece"
+          // flow, where Gemini Vision builds outfits around a single
+          // garment photo the user uploads (doesn't have to be in
+          // their closet). Kept visually secondary to the main card.
+          SliverToBoxAdapter(child: _buildStyleAnchorCard()),
           const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
           // Hero banner
@@ -414,6 +420,85 @@ class _HomeScreenState extends State<HomeScreen>
                     size: 18,
                     color: AppColors.accent,
                   ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Secondary companion card — the generative "Style a New Piece"
+  /// flow. Sits just under the Daily AI Stylist card, styled in the
+  /// primary color (instead of accent) so the two look like a pair
+  /// rather than competing for the same eye-draw.
+  Widget _buildStyleAnchorCard() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => context.push('/digital-wardrobe/style-anchor'),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppColors.primary.withAlpha(40),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withAlpha(25),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.add_photo_alternate_outlined,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Style a New Piece',
+                        style: GoogleFonts.manrope(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Snap a shirt, pant or shoes — get 3 full looks designed around it.',
+                        style: GoogleFonts.manrope(
+                          fontSize: 11.5,
+                          color: AppColors.textSecondary,
+                          height: 1.25,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 14,
+                  color: AppColors.primary.withAlpha(140),
                 ),
               ],
             ),

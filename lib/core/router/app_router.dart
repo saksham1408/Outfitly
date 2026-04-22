@@ -40,6 +40,7 @@ import '../../features/addresses/domain/address_prefill.dart';
 import '../../features/digital_wardrobe/presentation/digital_closet_screen.dart';
 import '../../features/digital_wardrobe/presentation/wardrobe_upload_screen.dart';
 import '../../features/digital_wardrobe/presentation/daily_stylist_screen.dart';
+import '../../features/digital_wardrobe/presentation/style_anchor_screen.dart';
 
 /// Central route configuration for the app.
 abstract final class AppRouter {
@@ -310,6 +311,13 @@ abstract final class AppRouter {
         path: '/digital-wardrobe/stylist',
         name: 'dailyStylist',
         builder: (context, state) => const DailyStylistScreen(),
+      ),
+      // Style an uploaded anchor piece — AI Vision designs 3 full
+      // outfits around a single garment the user photographs.
+      GoRoute(
+        path: '/digital-wardrobe/style-anchor',
+        name: 'styleAnchor',
+        builder: (context, state) => const StyleAnchorScreen(),
       ),
     ],
   );
