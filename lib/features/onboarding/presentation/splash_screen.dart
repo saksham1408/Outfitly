@@ -19,13 +19,13 @@ import '../../../core/network/supabase_client.dart';
 ///     otherwise `/login`. The router's redirect gate gives `/` a free
 ///     pass so this screen can always render before we branch.
 ///
-/// The crisp-white backdrop mirrors the launcher-icon + native-splash
-/// config so the OS → native splash → animated Dart splash handoff
-/// reads as a single seamless moment (no colour flash between stages).
-/// The Vastrahub mark is self-contained — hanger motif + "वस्त्र Hub"
-/// wordmark + "FASHION FOR EVERY YOU" tagline are all baked into the
-/// PNG — so we render it 1:1 without any surrounding ring, wordmark
-/// overlay, or secondary text.
+/// The crisp-white backdrop mirrors the native pre-frame splash so the
+/// OS → native splash → animated Dart splash handoff reads as a single
+/// seamless moment. Note the splash logo is deliberately the minimalist
+/// black-on-white variant (`vastrahub_splash.png`) — NOT the launcher's
+/// full-colour purple/gold mark. The launcher has a richer icon for the
+/// home-screen tile, but at full-screen splash sizes the minimalist
+/// lockup reads cleaner and stays readable on any backdrop.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -40,14 +40,14 @@ class _SplashScreenState extends State<SplashScreen>
   /// animation room to breathe without feeling sluggish.
   static const Duration _holdDuration = Duration(seconds: 3);
 
-  /// Pure white matching the launcher-icon background and the logo's
-  /// own canvas. Consistent across native splash + Dart splash so the
-  /// transition between stages is invisible.
+  /// Pure white matching the native pre-frame splash backdrop and the
+  /// logo's own canvas. The Dart splash inherits the exact same colour
+  /// so the transition between stages is invisible.
   static const Color _brandBackground = Color(0xFFFFFFFF);
 
-  /// Warm off-white for the radial-glow centre — stops the flat
-  /// white backdrop from reading as sterile / office-document. Pulled
-  /// a half-step off pure white; enough to feel intentional without
+  /// Warm off-white for the radial-glow centre — stops the flat white
+  /// backdrop from reading as sterile / office-document. Pulled a
+  /// half-step off pure white; enough to feel intentional without
   /// competing with the black mark for attention.
   static const Color _brandGlow = Color(0xFFF5F1EB);
 
@@ -117,14 +117,15 @@ class _SplashScreenState extends State<SplashScreen>
                 opacity: _fade,
                 child: ScaleTransition(
                   scale: _scale,
-                  // Render the Vastrahub brand mark as-is — no extra
-                  // wordmark or tagline around it, since the logo
-                  // already contains "वस्त्र Hub" + "FASHION FOR EVERY
-                  // YOU". cacheWidth/Height keep the decoded bitmap at
+                  // Render the splash variant of the Vastrahub mark —
+                  // minimalist black-on-white with the hanger + "वस्त्र
+                  // Hub" + "FASHION FOR EVERY YOU" tagline all baked
+                  // in. Rendered 1:1, no wrapping ring / wordmark.
+                  // cacheWidth/Height keep the decoded bitmap at
                   // display size so we don't blow 4MB of memory on a
                   // 1024² source when we only need ~260 points.
                   child: Image.asset(
-                    'assets/branding/vastrahub_icon.png',
+                    'assets/branding/vastrahub_splash.png',
                     width: 260,
                     height: 260,
                     fit: BoxFit.contain,
