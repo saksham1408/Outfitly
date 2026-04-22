@@ -65,6 +65,9 @@ class AddressService {
   }
 
   /// Saves a new address and makes it the currently selected one.
+  /// [latitude]/[longitude] default to 0 for manually-entered rows
+  /// (the add-address form) — when we later add the "Use my current
+  /// location" GPS path it will pass real coords through.
   Future<SavedAddress> add({
     required AddressLabel label,
     required String recipientName,
@@ -72,8 +75,10 @@ class AddressService {
     required String city,
     required String addressLine1,
     String? addressLine2,
-    required double latitude,
-    required double longitude,
+    String? state,
+    String? phone,
+    double latitude = 0,
+    double longitude = 0,
   }) async {
     await ensureLoaded();
     final created = SavedAddress(
@@ -84,6 +89,8 @@ class AddressService {
       city: city,
       addressLine1: addressLine1,
       addressLine2: addressLine2,
+      state: state,
+      phone: phone,
       latitude: latitude,
       longitude: longitude,
       createdAt: DateTime.now(),

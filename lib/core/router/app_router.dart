@@ -35,6 +35,7 @@ import '../../features/shell/main_shell.dart';
 import '../../features/profile/screens/profile_screen.dart';
 import '../../features/search/screens/search_screen.dart';
 import '../../features/wishlist/screens/wishlist_screen.dart';
+import '../../features/account/presentation/add_address_screen.dart';
 
 /// Central route configuration for the app.
 abstract final class AppRouter {
@@ -274,6 +275,13 @@ abstract final class AppRouter {
         builder: (context, state) => VirtualTryOnScreen(
           product: state.extra as ProductModel,
         ),
+      ),
+
+      // ── Account: Add / manage delivery addresses ──
+      GoRoute(
+        path: '/account/add-address',
+        name: 'addAddress',
+        builder: (context, state) => const AddAddressScreen(),
       ),
     ],
   );
