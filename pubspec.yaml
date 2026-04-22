@@ -91,11 +91,11 @@ flutter_launcher_icons:
   android: true
   ios: true
   remove_alpha_ios: true
-  background_color_ios: "#3B1A4F"  # royal purple behind the logo
+  background_color_ios: "#FFFFFF"  # white canvas matches the logo artwork
 
 # ── Native pre-frame splash ──
 # Shown for the handful of frames between the OS launch and the Flutter
-# engine being ready to paint. Keeping the background (#3B1A4F) and the
+# engine being ready to paint. Keeping the background (#FFFFFF) and the
 # logo identical to the animated Dart SplashScreen means the two stages
 # read as one continuous moment — no jarring colour or logo swap.
 #
@@ -104,10 +104,10 @@ flutter_launcher_icons:
 #
 # Regenerate with:  dart run flutter_native_splash:create
 flutter_native_splash:
-  color: "#3B1A4F"
+  color: "#FFFFFF"
   image: assets/branding/vastrahub_icon.png
   android_12:
-    color: "#3B1A4F"
+    color: "#FFFFFF"
     image: assets/branding/vastrahub_icon.png
 
 # For information on the generic Dart part of this file, see the
