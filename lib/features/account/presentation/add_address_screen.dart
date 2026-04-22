@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/theme.dart';
 import '../../addresses/data/address_service.dart';
+import '../../addresses/data/locations_repository.dart';
 import '../../addresses/domain/address_prefill.dart';
 import '../../addresses/domain/india_locations.dart';
 import '../../addresses/models/saved_address.dart';
@@ -54,6 +55,11 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
   @override
   void initState() {
     super.initState();
+    // Kick off the remote fetch for the reference tables. Safe to
+    // fire-and-forget — the ValueNotifiers are seeded with the
+    // bundled list, so the dropdowns paint immediately and quietly
+    // refresh once Supabase responds.
+    LocationsRepository.instance.ensureLoaded();
     _applyPrefill(widget.prefill);
   }
 
@@ -63,7 +69,8 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
 
     final seededState =
         p.state != null ? matchSeedState(p.state!) ?? p.state : null;
-    if (seededState != null && indianStates.contains(seededState)) {
+    final knownStates = LocationsRepository.instance.states.value;
+    if (seededState != null && knownStates.contains(seededState)) {
       _selectedState = seededState;
       if ((p.city ?? '').isNotEmpty) {
         final matchedCity = matchSeedCity(seededState, p.city!);
@@ -447,6 +454,10 @@ InputDecoration _decoration(String hint) => InputDecoration(
       ),
     );
 
+/// State dropdown. Listens to [LocationsRepository.states] so the
+/// options refresh the moment the catalog team updates the Supabase
+/// table — no client release required. The seed [indianStates] shows
+/// first so the dropdown is never empty.
 class _StateDropdown extends StatelessWidget {
   final String? value;
   final ValueChanged<String?> onChanged;
@@ -455,36 +466,50 @@ class _StateDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      value: value,
-      isExpanded: true,
-      icon: const Icon(
-        Icons.keyboard_arrow_down_rounded,
-        size: 20,
-        color: AppColors.textSecondary,
-      ),
-      decoration: _decoration('Select state'),
-      style: GoogleFonts.manrope(
-        fontSize: 14,
-        color: AppColors.textPrimary,
-        fontWeight: FontWeight.w500,
-      ),
-      validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-      items: [
-        for (final s in indianStates)
-          DropdownMenuItem<String>(
-            value: s,
-            child: Text(
-              s,
-              overflow: TextOverflow.ellipsis,
-            ),
+    return ValueListenableBuilder<List<String>>(
+      valueListenable: LocationsRepository.instance.states,
+      builder: (context, states, _) {
+        // Guard: if the selected value was dropped from a newer catalog
+        // (rare, but possible during a remote refresh), pass null so
+        // the dropdown doesn't throw on a missing item.
+        final safeValue =
+            (value != null && states.contains(value)) ? value : null;
+        return DropdownButtonFormField<String>(
+          value: safeValue,
+          isExpanded: true,
+          icon: const Icon(
+            Icons.keyboard_arrow_down_rounded,
+            size: 20,
+            color: AppColors.textSecondary,
           ),
-      ],
-      onChanged: onChanged,
+          decoration: _decoration('Select state'),
+          style: GoogleFonts.manrope(
+            fontSize: 14,
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w500,
+          ),
+          validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+          items: [
+            for (final s in states)
+              DropdownMenuItem<String>(
+                value: s,
+                child: Text(
+                  s,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+          ],
+          onChanged: onChanged,
+        );
+      },
     );
   }
 }
 
+/// City dropdown. Listens to [LocationsRepository.citiesByState] so a
+/// remote-seeded "Other" city or a new Tier-3 town appears without an
+/// app update. Disabled until a state is picked — keeps the "parent
+/// first" form flow obvious.
 class _CityDropdown extends StatelessWidget {
   final String? state;
   final String? value;
@@ -498,38 +523,47 @@ class _CityDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final options = state == null ? const <String>[] : citiesFor(state!);
     final enabled = state != null;
+    return ValueListenableBuilder<Map<String, List<String>>>(
+      valueListenable: LocationsRepository.instance.citiesByState,
+      builder: (context, _, __) {
+        final options = enabled
+            ? LocationsRepository.instance.citiesFor(state!)
+            : const <String>[];
+        final safeValue =
+            (value != null && options.contains(value)) ? value : null;
 
-    return DropdownButtonFormField<String>(
-      value: value,
-      isExpanded: true,
-      icon: Icon(
-        Icons.keyboard_arrow_down_rounded,
-        size: 20,
-        color:
-            enabled ? AppColors.textSecondary : AppColors.textTertiary,
-      ),
-      decoration: _decoration(
-        enabled ? 'Select city' : 'Pick a state first',
-      ),
-      style: GoogleFonts.manrope(
-        fontSize: 14,
-        color: AppColors.textPrimary,
-        fontWeight: FontWeight.w500,
-      ),
-      validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-      items: [
-        for (final c in options)
-          DropdownMenuItem<String>(
-            value: c,
-            child: Text(
-              c,
-              overflow: TextOverflow.ellipsis,
-            ),
+        return DropdownButtonFormField<String>(
+          value: safeValue,
+          isExpanded: true,
+          icon: Icon(
+            Icons.keyboard_arrow_down_rounded,
+            size: 20,
+            color:
+                enabled ? AppColors.textSecondary : AppColors.textTertiary,
           ),
-      ],
-      onChanged: enabled ? onChanged : null,
+          decoration: _decoration(
+            enabled ? 'Select city' : 'Pick a state first',
+          ),
+          style: GoogleFonts.manrope(
+            fontSize: 14,
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w500,
+          ),
+          validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+          items: [
+            for (final c in options)
+              DropdownMenuItem<String>(
+                value: c,
+                child: Text(
+                  c,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+          ],
+          onChanged: enabled ? onChanged : null,
+        );
+      },
     );
   }
 }
