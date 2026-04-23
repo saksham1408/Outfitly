@@ -213,8 +213,88 @@ class _HomeScreenState extends State<HomeScreen>
 
           // Hero banner
           SliverToBoxAdapter(child: _buildHeroBanner()),
+
+          // ── Book a Home Tailor Visit CTA ──
+          // Sends the customer into the standalone tailor-booking
+          // flow. That flow INSERTs a `tailor_appointments` row which
+          // the Partner app's dispatch radar is subscribed to, so the
+          // request pops on a tailor's phone in real time.
+          const SliverToBoxAdapter(child: SizedBox(height: 20)),
+          SliverToBoxAdapter(child: _buildTailorVisitCta()),
+
           const SliverToBoxAdapter(child: SizedBox(height: 80)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTailorVisitCta() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GestureDetector(
+        onTap: () => context.push('/measurements/book-tailor'),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.accent.withAlpha(60)),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.accent.withAlpha(20),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withAlpha(25),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.home_repair_service_outlined,
+                  color: AppColors.accent,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Book a Home Tailor Visit',
+                      style: GoogleFonts.manrope(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'A vetted tailor will come to you — free',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: AppColors.textTertiary,
+                size: 16,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

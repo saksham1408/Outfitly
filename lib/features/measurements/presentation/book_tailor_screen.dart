@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/theme.dart';
 import '../../checkout/models/order_payload.dart';
+import '../data/tailor_appointment_service.dart';
 
 class BookTailorScreen extends StatefulWidget {
   final OrderPayload? payload;
@@ -21,7 +22,21 @@ class _BookTailorScreenState extends State<BookTailorScreen> {
   final _pincodeController = TextEditingController();
 
   String? _selectedDate;
+  // Raw DateTime backing the selected date chip. We keep [_selectedDate]
+  // as a display string (used by the order-checkout integration via
+  // `OrderPayload.tailorDate`) AND this raw value so the standalone
+  // "request a tailor visit" path can INSERT a real timestamp into
+  // `tailor_appointments` without having to round-trip through the
+  // formatted string.
+  DateTime? _selectedDateRaw;
   String? _selectedSlot;
+
+  /// Are we submitting the standalone visit request? Disables the CTA
+  /// while the Supabase round-trip is in flight so double-taps can't
+  /// create duplicate pending rows.
+  bool _submitting = false;
+
+  final _service = TailorAppointmentService();
 
   static const _timeSlots = [
     '10:00 AM – 12:00 PM',
@@ -49,11 +64,44 @@ class _BookTailorScreenState extends State<BookTailorScreen> {
       _addressController.text.trim().isNotEmpty &&
       _pincodeController.text.trim().length == 6 &&
       _selectedDate != null &&
-      _selectedSlot != null;
+      _selectedSlot != null &&
+      !_submitting;
 
-  void _proceed() {
+  /// Combine the selected date chip and time-slot string into a real
+  /// [DateTime]. Slot strings look like `"10:00 AM – 12:00 PM"` — we
+  /// take the start time. Returns null if parsing fails, so the
+  /// caller can fall back gracefully.
+  DateTime? _composeScheduledTime() {
+    final date = _selectedDateRaw;
+    final slot = _selectedSlot;
+    if (date == null || slot == null) return null;
+
+    try {
+      // Split on the en-dash separator; trim; expect `"h:mm AM|PM"`.
+      final start = slot.split('–').first.trim();
+      final parts = start.split(' ');
+      final hm = parts[0].split(':');
+      var hour = int.parse(hm[0]);
+      final min = int.parse(hm[1]);
+      final isPm = parts[1].toUpperCase() == 'PM';
+      if (isPm && hour != 12) hour += 12;
+      if (!isPm && hour == 12) hour = 0;
+      return DateTime(date.year, date.month, date.day, hour, min);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _proceed() async {
     final payload = widget.payload;
+
+    final fullAddress =
+        '${_addressController.text.trim()}, ${_landmarkController.text.trim()} — ${_pincodeController.text.trim()}'
+            .trimRight();
+
     if (payload != null) {
+      // Existing order-checkout integration: stuff the tailor details
+      // into the payload and let the cart screen pick up from here.
       payload.measurementMethod = 'tailor';
       payload.tailorAddress =
           '${_addressController.text.trim()}, ${_landmarkController.text.trim()}'.trimRight();
@@ -62,12 +110,80 @@ class _BookTailorScreenState extends State<BookTailorScreen> {
       payload.tailorTimeSlot = _selectedSlot;
 
       context.push('/cart', extra: payload);
-    } else {
-      // No payload — just confirm booking
+      return;
+    }
+
+    // Standalone path — the customer came straight from the home CTA,
+    // not from a product checkout. INSERT a `tailor_appointments` row
+    // so the Partner app's dispatch radar lights up in real time.
+    final scheduled = _composeScheduledTime();
+    if (scheduled == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tailor visit booked!')),
+        const SnackBar(content: Text('Please pick a date and time slot.')),
       );
+      return;
+    }
+
+    setState(() => _submitting = true);
+    try {
+      await _service.requestVisit(
+        address: fullAddress,
+        scheduledTime: scheduled,
+      );
+      if (!mounted) return;
+      // Polite modal confirmation — matches the rest of the Outfitly
+      // customer app's "order submitted" aesthetic.
+      await showDialog<void>(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          icon: const Icon(Icons.check_circle,
+              color: AppColors.accent, size: 48),
+          title: Text(
+            'Request sent',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.newsreader(
+              fontSize: 22,
+              fontStyle: FontStyle.italic,
+              color: AppColors.primary,
+            ),
+          ),
+          content: Text(
+            'A tailor will be dispatched to your address shortly.\nYou can track progress in Orders.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.manrope(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+              height: 1.5,
+            ),
+          ),
+          actions: [
+            Center(
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'DONE',
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
       context.pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not request visit: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -188,7 +304,10 @@ class _BookTailorScreenState extends State<BookTailorScreen> {
                   final dayName = formatted.split(',').first;
 
                   return GestureDetector(
-                    onTap: () => setState(() => _selectedDate = formatted),
+                    onTap: () => setState(() {
+                      _selectedDate = formatted;
+                      _selectedDateRaw = date;
+                    }),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       width: 68,
@@ -303,16 +422,26 @@ class _BookTailorScreenState extends State<BookTailorScreen> {
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              child: Text(
-                widget.payload != null
-                    ? 'CONTINUE TO CHECKOUT'
-                    : 'CONFIRM BOOKING',
-                style: GoogleFonts.manrope(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.5,
-                ),
-              ),
+              child: _submitting
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.4,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text(
+                      widget.payload != null
+                          ? 'CONTINUE TO CHECKOUT'
+                          : 'REQUEST TAILOR VISIT',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
             ),
           ),
         ),
