@@ -32,6 +32,14 @@ CREATE INDEX IF NOT EXISTS tailor_profiles_phone_idx
 -- scoped to "tailors assigned to my appointments".
 ALTER TABLE public.tailor_profiles ENABLE ROW LEVEL SECURITY;
 
+-- Drop first so the migration is re-runnable — Postgres 15 doesn't
+-- support `CREATE POLICY IF NOT EXISTS`, so a half-applied run (e.g.
+-- a SQL-editor retry after a transient error) would otherwise error
+-- out on duplicate policy names.
+DROP POLICY IF EXISTS "Tailors read own profile"   ON public.tailor_profiles;
+DROP POLICY IF EXISTS "Tailors insert own profile" ON public.tailor_profiles;
+DROP POLICY IF EXISTS "Tailors update own profile" ON public.tailor_profiles;
+
 CREATE POLICY "Tailors read own profile"
   ON public.tailor_profiles
   FOR SELECT
