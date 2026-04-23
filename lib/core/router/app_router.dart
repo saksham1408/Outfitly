@@ -24,6 +24,7 @@ import '../../features/checkout/cart_screen.dart';
 import '../../features/checkout/checkout_screen.dart';
 import '../../features/checkout/order_success_screen.dart';
 import '../../features/tracking/screens/order_tracking_screen.dart';
+import '../../features/measurements/presentation/tailor_visit_tracking_screen.dart';
 import '../../features/virtual_try_on/presentation/virtual_try_on_screen.dart';
 import '../../features/catalog/models/product_model.dart';
 import '../../features/outfitly_ai/presentation/outfitly_ai_screen.dart';
@@ -289,6 +290,20 @@ abstract final class AppRouter {
         name: 'tracking',
         builder: (context, state) => OrderTrackingScreen(
           orderId: state.pathParameters['orderId']!,
+        ),
+      ),
+
+      // ── Home Tailor Visit — live tracker for a single
+      //    tailor_appointments row. Customer lands here after
+      //    tapping "REQUEST TAILOR VISIT" on the booking screen;
+      //    the screen streams status changes in real time so when
+      //    a Partner accepts, the "YOUR TAILOR" card fills in
+      //    with their name and years of experience.
+      GoRoute(
+        path: '/tailor-visit/:id',
+        name: 'tailorVisit',
+        builder: (context, state) => TailorVisitTrackingScreen(
+          appointmentId: state.pathParameters['id']!,
         ),
       ),
 
