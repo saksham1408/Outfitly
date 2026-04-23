@@ -126,57 +126,20 @@ class _BookTailorScreenState extends State<BookTailorScreen> {
 
     setState(() => _submitting = true);
     try {
-      await _service.requestVisit(
+      final appointmentId = await _service.requestVisit(
         address: fullAddress,
         scheduledTime: scheduled,
       );
       if (!mounted) return;
-      // Polite modal confirmation — matches the rest of the Outfitly
-      // customer app's "order submitted" aesthetic.
-      await showDialog<void>(
-        context: context,
-        builder: (_) => AlertDialog(
-          backgroundColor: AppColors.surface,
-          icon: const Icon(Icons.check_circle,
-              color: AppColors.accent, size: 48),
-          title: Text(
-            'Request sent',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.newsreader(
-              fontSize: 22,
-              fontStyle: FontStyle.italic,
-              color: AppColors.primary,
-            ),
-          ),
-          content: Text(
-            'A tailor will be dispatched to your address shortly.\nYou can track progress in Orders.',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              height: 1.5,
-            ),
-          ),
-          actions: [
-            Center(
-              child: TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(
-                  'DONE',
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.5,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-      if (!mounted) return;
-      context.pop();
+      // Swap this booking form for the live tracker. `pushReplacement`
+      // (not `push`) keeps the back gesture from dropping the customer
+      // back into a stale, already-submitted form — the tracker is the
+      // authoritative "where does this live now" surface.
+      //
+      // The tracker's "Finding a tailor near you…" hero doubles as the
+      // submission-confirmation beat we used to get from a modal, so
+      // we don't need an extra dialog here.
+      context.pushReplacement('/tailor-visit/$appointmentId');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
