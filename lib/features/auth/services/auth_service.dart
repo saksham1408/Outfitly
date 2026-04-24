@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/network/supabase_client.dart';
+import '../../../core/push/device_token_service.dart';
 
 class AuthService {
   final SupabaseClient _client = AppSupabase.client;
+  final DeviceTokenService _deviceTokens = DeviceTokenService();
 
   // ── Streams & State ──
 
@@ -33,14 +37,23 @@ class AuthService {
   }
 
   /// Sign in with email and password.
+  ///
+  /// On success we fire-and-forget a push-token register — the call
+  /// is safe to run before the FCM integration lands because the
+  /// scaffold stub no-ops cleanly. When FCM is wired up, moving this
+  /// call is the only change needed here.
   Future<AuthResponse> signIn({
     required String email,
     required String password,
   }) async {
-    return await _client.auth.signInWithPassword(
+    final response = await _client.auth.signInWithPassword(
       email: email,
       password: password,
     );
+    if (response.user != null) {
+      unawaited(_deviceTokens.registerCurrent());
+    }
+    return response;
   }
 
   /// Send a password reset email.
@@ -111,6 +124,12 @@ class AuthService {
   // ── Sign Out ──
 
   Future<void> signOut() async {
+    // Drop our push token first so this device doesn't keep
+    // receiving pushes for the account we're leaving. Awaited
+    // because we want it to finish before the session clears —
+    // once the auth uid flips to null, the RLS policy on
+    // device_tokens.delete would reject the request.
+    await _deviceTokens.unregisterCurrent();
     await _client.auth.signOut();
   }
 }
