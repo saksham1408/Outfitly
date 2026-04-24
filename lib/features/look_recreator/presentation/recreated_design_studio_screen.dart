@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/theme.dart';
+import '../../checkout/models/order_payload.dart';
 import '../../design_studio/models/customization_options.dart';
 import '../models/recreated_design.dart';
 
@@ -90,6 +91,29 @@ class _RecreatedDesignStudioScreenState
         .label;
   }
 
+  /// Build an [OrderPayload] from the current on-screen state and push
+  /// it into the same `/measurements/decision` → `/cart` flow the
+  /// catalog product path uses. We don't route to `/cart` directly —
+  /// the existing flow wants a measurement method on the payload
+  /// before placing the order, and forcing it here keeps the INSERT
+  /// site (CartScreen) as the single source of truth for order
+  /// creation. The `isRecreatedLook: true` flag is how the atelier
+  /// dashboard recognises these rows later.
+  void _continueToCheckout() {
+    final design = widget.result.design;
+    final payload = OrderPayload(
+      productName: 'AI Recreated Look',
+      price: _price.toDouble(),
+      fabric: design.fabricType,
+      collarStyle: _collarId,
+      sleeveDesign: _sleeveId,
+      fitType: _fitId,
+      stylistNotes: design.stylistNotes,
+      isRecreatedLook: true,
+    );
+    context.push('/measurements/decision', extra: payload);
+  }
+
   @override
   Widget build(BuildContext context) {
     final design = widget.result.design;
@@ -167,16 +191,7 @@ class _RecreatedDesignStudioScreenState
                 height: 54,
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Hand off to the manual measurement flow — the
-                    // existing checkout path is product-anchored and
-                    // doesn't yet take a "free-form" recreated design.
-                    // Wiring that end-to-end is a follow-up; for now
-                    // we route into the measurements decision screen
-                    // so the user can at least secure their fit data
-                    // while we finish the stitching pipeline.
-                    context.push('/measurements/decision');
-                  },
+                  onPressed: _continueToCheckout,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
