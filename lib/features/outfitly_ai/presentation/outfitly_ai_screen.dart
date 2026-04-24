@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/theme.dart';
@@ -85,6 +86,8 @@ class _OutfitlyAiScreenState extends State<OutfitlyAiScreen> {
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
           children: [
             _buildHero(),
+            const SizedBox(height: 14),
+            _buildRecreateLookCard(),
             const SizedBox(height: 24),
             _sectionLabel('MOOD'),
             const SizedBox(height: 10),
@@ -169,6 +172,71 @@ class _OutfitlyAiScreenState extends State<OutfitlyAiScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Tappable card under the hero that hands off to the AI Look
+  /// Recreator. Uses warm accent colours (vs. the cool primary of the
+  /// hero) so the two surfaces read as distinct entry points: "style
+  /// me" vs. "recreate this look I saw".
+  Widget _buildRecreateLookCard() {
+    return GestureDetector(
+      onTap: () => context.push('/recreate-look'),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.accent.withAlpha(15),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.accent.withAlpha(60)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppColors.accent.withAlpha(30),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: const Icon(
+                Icons.image_search_rounded,
+                color: AppColors.accent,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Recreate a Look from a Photo',
+                    style: GoogleFonts.manrope(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Reverse-engineer any outfit on a budget',
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: AppColors.accent,
+              size: 14,
+            ),
+          ],
+        ),
       ),
     );
   }

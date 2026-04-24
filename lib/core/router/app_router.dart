@@ -25,6 +25,9 @@ import '../../features/checkout/checkout_screen.dart';
 import '../../features/checkout/order_success_screen.dart';
 import '../../features/tracking/screens/order_tracking_screen.dart';
 import '../../features/measurements/presentation/tailor_visit_tracking_screen.dart';
+import '../../features/look_recreator/presentation/recreate_look_screen.dart';
+import '../../features/look_recreator/presentation/analyzing_look_screen.dart';
+import '../../features/look_recreator/presentation/recreated_design_studio_screen.dart';
 import '../../features/virtual_try_on/presentation/virtual_try_on_screen.dart';
 import '../../features/catalog/models/product_model.dart';
 import '../../features/outfitly_ai/presentation/outfitly_ai_screen.dart';
@@ -304,6 +307,33 @@ abstract final class AppRouter {
         name: 'tailorVisit',
         builder: (context, state) => TailorVisitTrackingScreen(
           appointmentId: state.pathParameters['id']!,
+        ),
+      ),
+
+      // ── AI Look Recreator (Gemini Vision) ──
+      // Three-screen flow:
+      //   1. /recreate-look          → upload + budget/occasion chips
+      //   2. /recreate-look/analyzing → laser-scan animation + Gemini call
+      //   3. /recreate-look/result   → recreated design studio
+      // Each step `pushReplacement`s to the next so the back gesture
+      // skips transient surfaces and lands on Home.
+      GoRoute(
+        path: '/recreate-look',
+        name: 'recreateLook',
+        builder: (context, state) => const RecreateLookScreen(),
+      ),
+      GoRoute(
+        path: '/recreate-look/analyzing',
+        name: 'recreateLookAnalyzing',
+        builder: (context, state) => AnalyzingLookScreen(
+          request: state.extra as RecreateLookRequest,
+        ),
+      ),
+      GoRoute(
+        path: '/recreate-look/result',
+        name: 'recreateLookResult',
+        builder: (context, state) => RecreatedDesignStudioScreen(
+          result: state.extra as RecreatedDesignResult,
         ),
       ),
 

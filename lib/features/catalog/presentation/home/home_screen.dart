@@ -222,6 +222,13 @@ class _HomeScreenState extends State<HomeScreen>
           const SliverToBoxAdapter(child: SizedBox(height: 20)),
           SliverToBoxAdapter(child: _buildTailorVisitCta()),
 
+          // ── AI Look Recreator CTA ──
+          // Routes into the photo-upload flow where Gemini Vision
+          // reverse-engineers an inspiration outfit into a custom
+          // blueprint pre-populated for our design studio.
+          const SliverToBoxAdapter(child: SizedBox(height: 12)),
+          SliverToBoxAdapter(child: _buildRecreateLookCta()),
+
           const SliverToBoxAdapter(child: SizedBox(height: 80)),
         ],
       ),
@@ -290,6 +297,95 @@ class _HomeScreenState extends State<HomeScreen>
               Icon(
                 Icons.arrow_forward_ios_rounded,
                 color: AppColors.textTertiary,
+                size: 16,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// CTA card that drops the customer into the AI Look Recreator
+  /// flow (photo → Gemini → recreated design studio). Same visual
+  /// language as `_buildTailorVisitCta` so the home screen reads as
+  /// a coherent stack of "do something custom" entry points.
+  Widget _buildRecreateLookCta() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GestureDetector(
+        onTap: () => context.push('/recreate-look'),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppColors.accentContainer.withAlpha(50),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome,
+                  color: AppColors.accentContainer,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Recreate a Look',
+                          style: GoogleFonts.manrope(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.accentContainer.withAlpha(60),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            'AI',
+                            style: GoogleFonts.manrope(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.8,
+                              color: AppColors.accentContainer,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Upload an outfit photo — get a custom blueprint',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        color: Colors.white.withAlpha(180),
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: Colors.white.withAlpha(170),
                 size: 16,
               ),
             ],
