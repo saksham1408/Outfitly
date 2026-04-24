@@ -9,11 +9,22 @@
 /// in the real name + years-of-experience the moment one lands.
 library;
 
-/// The four states a visit row can be in — mirrors the CHECK
-/// constraint on `tailor_appointments.status`.
+/// The six states a visit row can be in — mirrors the CHECK
+/// constraint on `tailor_appointments.status` (see migration 026).
+///
+/// Happy-path progression:
+///
+///   pending → accepted → enRoute → arrived → completed
+///                                       ↘ cancelled
+///
+/// The Partner app advances the row one step at a time from the
+/// active job screen; this surface renders the current step + the
+/// future steps as a vertical timeline.
 enum TailorVisitStatus {
   pending,
   accepted,
+  enRoute,
+  arrived,
   completed,
   cancelled;
 
@@ -23,6 +34,10 @@ enum TailorVisitStatus {
         return TailorVisitStatus.pending;
       case 'accepted':
         return TailorVisitStatus.accepted;
+      case 'en_route':
+        return TailorVisitStatus.enRoute;
+      case 'arrived':
+        return TailorVisitStatus.arrived;
       case 'completed':
         return TailorVisitStatus.completed;
       case 'cancelled':
@@ -43,10 +58,35 @@ enum TailorVisitStatus {
         return 'Finding a tailor';
       case TailorVisitStatus.accepted:
         return 'Dispatched';
+      case TailorVisitStatus.enRoute:
+        return 'On the way';
+      case TailorVisitStatus.arrived:
+        return 'Arrived';
       case TailorVisitStatus.completed:
         return 'Completed';
       case TailorVisitStatus.cancelled:
         return 'Cancelled';
+    }
+  }
+
+  /// Position along the happy-path progression — used by the
+  /// timeline to decide which steps render as filled (≤ current)
+  /// vs. ghosted (> current). `cancelled` returns -1 so the
+  /// timeline collapses cleanly.
+  int get progressIndex {
+    switch (this) {
+      case TailorVisitStatus.pending:
+        return 0;
+      case TailorVisitStatus.accepted:
+        return 1;
+      case TailorVisitStatus.enRoute:
+        return 2;
+      case TailorVisitStatus.arrived:
+        return 3;
+      case TailorVisitStatus.completed:
+        return 4;
+      case TailorVisitStatus.cancelled:
+        return -1;
     }
   }
 }
@@ -106,6 +146,8 @@ class TailorVisit {
 
   bool get isPending   => status == TailorVisitStatus.pending;
   bool get isAccepted  => status == TailorVisitStatus.accepted;
+  bool get isEnRoute   => status == TailorVisitStatus.enRoute;
+  bool get isArrived   => status == TailorVisitStatus.arrived;
   bool get isCompleted => status == TailorVisitStatus.completed;
   bool get isCancelled => status == TailorVisitStatus.cancelled;
 
