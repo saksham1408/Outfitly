@@ -70,6 +70,16 @@ class _TailorVisitTrackingScreenState extends State<TailorVisitTrackingScreen> {
                 _sectionLabel('YOUR TAILOR'),
                 const SizedBox(height: 12),
                 _TailorCard(visit: visit),
+                // The timeline only earns real estate once a tailor
+                // has actually picked up the request — until then
+                // the "Finding a tailor" tailor card carries the
+                // whole waiting-state story on its own.
+                if (!visit.isPending && !visit.isCancelled) ...[
+                  const SizedBox(height: 28),
+                  _sectionLabel('PROGRESS'),
+                  const SizedBox(height: 12),
+                  _ProgressTimeline(visit: visit),
+                ],
                 const SizedBox(height: 28),
                 _sectionLabel('VISIT DETAILS'),
                 const SizedBox(height: 12),
@@ -161,6 +171,7 @@ class _StatusHero extends StatelessWidget {
   /// the card reads at a glance and the emotional beat matches what
   /// the customer is actually waiting on.
   (String, String) _copy(TailorVisit visit) {
+    final name = visit.tailor?.fullName ?? 'Your tailor';
     switch (visit.status) {
       case TailorVisitStatus.pending:
         return (
@@ -169,11 +180,21 @@ class _StatusHero extends StatelessWidget {
               'name here the moment someone picks up.',
         );
       case TailorVisitStatus.accepted:
-        final name = visit.tailor?.fullName ?? 'Your tailor';
+        return (
+          '$name has accepted.',
+          'They\'re wrapping up at the workshop. We\'ll update this screen '
+              'the moment they head out.',
+        );
+      case TailorVisitStatus.enRoute:
         return (
           '$name is on the way.',
-          'We\'ll keep this screen live until they arrive and finish taking '
-              'your measurements.',
+          'Sit tight — they\'ll knock when they\'re at your door.',
+        );
+      case TailorVisitStatus.arrived:
+        return (
+          '$name is at your door.',
+          'Let them in whenever you\'re ready. Measurements take about '
+              '15 minutes.',
         );
       case TailorVisitStatus.completed:
         return (
@@ -350,6 +371,192 @@ class _TailorCard extends StatelessWidget {
     if (years <= 0) return 'New on Outfitly';
     if (years == 1) return '1 year of experience';
     return '$years years of experience';
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// Progress Timeline
+// ────────────────────────────────────────────────────────────
+/// Vertical four-step timeline that renders the customer-facing
+/// view of the Partner app's stepper. Reads
+/// [TailorVisitStatus.progressIndex] (pending=0, accepted=1,
+/// enRoute=2, arrived=3, completed=4) and fills every step whose
+/// progress index is ≤ the current one.
+///
+/// Only rendered once the visit has moved past `pending` — the
+/// "Finding a tailor" tailor card carries the whole waiting-state
+/// story on its own.
+class _ProgressTimeline extends StatelessWidget {
+  const _ProgressTimeline({required this.visit});
+
+  final TailorVisit visit;
+
+  // Step 0 (pending) is the pre-history — the timeline begins the
+  // moment a tailor accepts. Indices here map 1:1 onto the filled
+  // states a claimed row walks through.
+  static const _steps = <_TimelineStep>[
+    _TimelineStep(
+      status: TailorVisitStatus.accepted,
+      title: 'Request accepted',
+      sub: 'A tailor has picked up your visit.',
+      icon: Icons.check,
+    ),
+    _TimelineStep(
+      status: TailorVisitStatus.enRoute,
+      title: 'On the way',
+      sub: 'Heading over with the measuring kit.',
+      icon: Icons.directions_car,
+    ),
+    _TimelineStep(
+      status: TailorVisitStatus.arrived,
+      title: 'At your door',
+      sub: 'Ready whenever you are.',
+      icon: Icons.location_on,
+    ),
+    _TimelineStep(
+      status: TailorVisitStatus.completed,
+      title: 'Measurements complete',
+      sub: 'Saved to your profile.',
+      icon: Icons.done_all,
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final current = visit.status.progressIndex;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: List.generate(_steps.length, (i) {
+          final step = _steps[i];
+          final stepIndex = step.status.progressIndex;
+          final reached = stepIndex <= current;
+          final isCurrent = stepIndex == current;
+          final isLast = i == _steps.length - 1;
+          return _TimelineRow(
+            step: step,
+            reached: reached,
+            isCurrent: isCurrent,
+            isLast: isLast,
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class _TimelineStep {
+  const _TimelineStep({
+    required this.status,
+    required this.title,
+    required this.sub,
+    required this.icon,
+  });
+
+  final TailorVisitStatus status;
+  final String title;
+  final String sub;
+  final IconData icon;
+}
+
+class _TimelineRow extends StatelessWidget {
+  const _TimelineRow({
+    required this.step,
+    required this.reached,
+    required this.isCurrent,
+    required this.isLast,
+  });
+
+  final _TimelineStep step;
+  final bool reached;
+  final bool isCurrent;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = reached ? AppColors.accent : AppColors.border;
+    final iconColor = reached ? Colors.white : AppColors.textTertiary;
+    final titleColor = reached
+        ? AppColors.textPrimary
+        : AppColors.textTertiary;
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Gutter: node + vertical connector.
+          SizedBox(
+            width: 36,
+            child: Column(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: reached ? AppColors.accent : AppColors.surface,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: accent,
+                      width: isCurrent ? 2.5 : 1.5,
+                    ),
+                  ),
+                  child: Icon(step.icon, size: 15, color: iconColor),
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      color: reached
+                          ? AppColors.accent
+                          : AppColors.border,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Label column. Bottom padding on every row except the
+          // last so the stack has breathing room.
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: isLast ? 0 : 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    step.title,
+                    style: GoogleFonts.manrope(
+                      fontSize: 14,
+                      fontWeight: isCurrent
+                          ? FontWeight.w700
+                          : FontWeight.w600,
+                      color: titleColor,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    step.sub,
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      color: reached
+                          ? AppColors.textSecondary
+                          : AppColors.textTertiary,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
