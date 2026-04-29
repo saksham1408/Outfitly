@@ -321,11 +321,31 @@ class _DesignStudioScreenState extends State<DesignStudioScreen> {
   }
 
   Widget _buildFabricStep(ProductModel product) {
+    final fabricChosen = _selection.fabricId != null;
+
     return SingleChildScrollView(
-      child: FabricSelector(
-        fabrics: product.fabricOptions,
-        selectedFabric: _selection.fabricId,
-        onSelected: (fabric) => _setStepSelection(0, fabric),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          FabricSelector(
+            fabrics: product.fabricOptions,
+            selectedFabric: _selection.fabricId,
+            onSelected: (fabric) => _setStepSelection(0, fabric),
+          ),
+
+          // ── Book a Home Tailor Visit CTA ──
+          // Surfaces the moment the customer picks a fabric. Until
+          // then there's nothing to measure for, so the offer would
+          // be premature. Tapping pushes the standalone booking
+          // screen, which INSERTs a `tailor_appointments` row that
+          // the Partner app's dispatch radar listens to in real time.
+          if (fabricChosen) ...[
+            const SizedBox(height: AppSpacing.xl),
+            _TailorVisitCta(
+              onTap: () => context.push('/measurements/book-tailor'),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -593,6 +613,102 @@ class _ThumbnailImage extends StatelessWidget {
           fit: BoxFit.cover,
         );
       },
+    );
+  }
+}
+
+/// "Book a Home Tailor Visit" CTA shown on the fabric step ONCE the
+/// customer has picked a fabric. Kept as a private widget so the
+/// step body stays tidy. Intentionally visually quieter than the
+/// primary "Continue" button at the bottom of the screen — this is
+/// an offer, not the happy-path next step.
+class _TailorVisitCta extends StatelessWidget {
+  final VoidCallback onTap;
+  const _TailorVisitCta({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          border: Border.all(color: AppColors.accent.withAlpha(60)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.accent.withAlpha(20),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.accent.withAlpha(25),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.home_repair_service_outlined,
+                color: AppColors.accent,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Book a Home Tailor Visit',
+                          style: AppTypography.titleSmall,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent.withAlpha(30),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'FREE',
+                          style: AppTypography.labelSmall.copyWith(
+                            color: AppColors.accent,
+                            letterSpacing: 1.0,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'A vetted tailor will come to you to take measurements.',
+                    style: AppTypography.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: AppColors.textTertiary,
+              size: 14,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
