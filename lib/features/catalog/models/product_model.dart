@@ -1,3 +1,5 @@
+import '../../../core/locale/money.dart';
+
 class ProductModel {
   final String id;
   final String? categoryId;
@@ -51,7 +53,10 @@ class ProductModel {
     );
   }
 
-  String get formattedPrice => '\u20B9${basePrice.toStringAsFixed(0)}';
+  /// Locale-aware price string. Routes through [Money] so UK shoppers
+  /// see `£`, JP shoppers see `¥`, etc. — the underlying `basePrice` is
+  /// always INR-denominated; conversion happens inside [Money.format].
+  String get formattedPrice => Money.formatStatic(basePrice);
 
   /// True when this product belongs to the Embroidery subcategory.
   /// Matches on slug first (stable), falling back to a case-insensitive

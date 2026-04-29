@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import 'core/locale/money.dart';
 import 'core/network/supabase_client.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
@@ -33,6 +36,13 @@ void main() async {
 
   await AppSupabase.init();
 
+  // Currency localization. Fire-and-forget on purpose: the catalog is
+  // INR-denominated, so even if the FX fetch hasn't finished by the
+  // first paint we'll just render in ₹ for a frame or two before
+  // notifyListeners() repaints with the converted value. Awaiting here
+  // would block boot on a slow network for no UX benefit.
+  unawaited(Money.instance.init());
+
   // Opt-in auto-test for the notification pipeline. Enabled with
   //   flutter run --dart-define=NOTIF_AUTO_TEST=true
   // so normal debug runs don't spam a banner. When set, we warm up the
@@ -54,11 +64,18 @@ class OutfitlyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'VASTRAHUB',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      routerConfig: AppRouter.router,
+    // AnimatedBuilder over Money.instance ensures every price-displaying
+    // widget rebuilds the moment FX rates resolve — without this, a UK
+    // user would see ₹ prices for the whole session if Money.init()
+    // hadn't completed before the first paint.
+    return AnimatedBuilder(
+      animation: Money.instance,
+      builder: (context, _) => MaterialApp.router(
+        title: 'VASTRAHUB',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light,
+        routerConfig: AppRouter.router,
+      ),
     );
   }
 }

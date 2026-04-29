@@ -31,6 +31,15 @@ class OrderPayload {
   String? tailorDate;
   String? tailorTimeSlot;
 
+  /// Real DateTime backing [tailorDate] + [tailorTimeSlot]. We carry it
+  /// purely so the cart's `_placeOrder` can dispatch a `tailor_appointments`
+  /// row to the Partner radar with a precise timestamptz — without having
+  /// to round-trip through the human-readable strings (which lose the
+  /// year on rollover dates like "Mon, 01 Jan"). NOT serialised into
+  /// `orders.design_choices` because the formatted strings are what the
+  /// atelier dashboard reads.
+  DateTime? tailorScheduledTime;
+
   /// Public URL of a user-uploaded reference image. Populated from the
   /// Design Studio when a customer attaches a custom design to an
   /// Embroidery-subcategory product. Surfaces in Directus admin so the
@@ -58,6 +67,7 @@ class OrderPayload {
     this.tailorPincode,
     this.tailorDate,
     this.tailorTimeSlot,
+    this.tailorScheduledTime,
     this.customEmbroideryUrl,
     this.collarStyle,
     this.sleeveDesign,
@@ -111,6 +121,7 @@ class OrderPayload {
     String? tailorPincode,
     String? tailorDate,
     String? tailorTimeSlot,
+    DateTime? tailorScheduledTime,
   }) {
     final p = OrderPayload(
       productName: productName,
@@ -130,6 +141,7 @@ class OrderPayload {
     p.tailorPincode = tailorPincode;
     p.tailorDate = tailorDate;
     p.tailorTimeSlot = tailorTimeSlot;
+    p.tailorScheduledTime = tailorScheduledTime;
     return p;
   }
 

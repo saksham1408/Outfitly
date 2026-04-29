@@ -1,3 +1,5 @@
+import '../../../core/locale/money.dart';
+
 class OrderStatus {
   final String key;
   final String label;
@@ -71,7 +73,14 @@ class OrderModel {
     );
   }
 
-  String get formattedPrice => '₹${totalPrice.toStringAsFixed(0)}';
+  /// Locale-aware order total. The historical price is INR-denominated
+  /// (that's how the order was placed), so we convert through [Money]
+  /// for display. Note: the converted value floats with the FX rate —
+  /// a £18 order today may render as £19 in three months. Acceptable
+  /// for an "informational" track-my-order screen; if/when we go
+  /// transactional, snapshot the converted price at order time and
+  /// store it on the row.
+  String get formattedPrice => Money.formatStatic(totalPrice);
 
   int get currentStepIndex => OrderStatus.indexOf(status);
 

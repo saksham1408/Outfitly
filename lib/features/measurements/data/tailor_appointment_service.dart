@@ -48,6 +48,35 @@ class TailorAppointmentService {
     return inserted['id'] as String;
   }
 
+  /// Realtime feed of every tailor appointment the signed-in customer
+  /// has ever requested. Powers the "Tailor Visits" tab on the orders
+  /// screen so the list reflects status changes the moment a Partner
+  /// advances a row on the other side of the wire — no manual refresh.
+  ///
+  /// Tailor profiles are NOT joined in here: the list view only renders
+  /// the address, scheduled time, and status pill. The [watchVisit]
+  /// detail stream still handles the lazy profile-fetch on tap.
+  ///
+  /// Emits an empty list when signed out so callers can guard with a
+  /// trivial `if (snapshot.data?.isEmpty ?? true)` empty state.
+  Stream<List<TailorVisit>> myVisits() {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      return Stream<List<TailorVisit>>.value(const []);
+    }
+
+    return _client
+        .from('tailor_appointments')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', user.id)
+        .order('created_at', ascending: false)
+        .map(
+          (rows) => rows
+              .map((row) => TailorVisit.fromMap(row))
+              .toList(growable: false),
+        );
+  }
+
   /// Live stream of a single tailor visit, merged with the assigned
   /// tailor's profile as soon as one is set.
   ///

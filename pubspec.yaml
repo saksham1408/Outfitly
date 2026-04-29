@@ -62,6 +62,10 @@ dependencies:
   # storage path can be resolved before the Postgres row exists) and
   # for the saved-address cache keys.
   uuid: ^4.5.1
+  # Locale-aware number/currency formatting — drives the dynamic price
+  # localization layer. Pulled transitively by Flutter SDK already, but
+  # we declare it explicitly so a future SDK bump doesn't surprise us.
+  intl: ^0.19.0
 
 dev_dependencies:
   flutter_test:

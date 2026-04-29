@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/locale/money.dart';
 import '../../../core/theme/theme.dart';
 import '../../checkout/models/order_payload.dart';
 import '../../design_studio/models/customization_options.dart';
@@ -488,7 +489,11 @@ class _PriceCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '₹${_formatInr(price)}',
+                  // Money handles locale grouping for us (en_IN gives
+                  // the lakh format, en_US gives thousand-grouping,
+                  // de_DE gives `1.500`, etc.) and adds the right
+                  // currency symbol after FX conversion.
+                  Money.formatStatic(price.toDouble()),
                   style: GoogleFonts.newsreader(
                     fontSize: 32,
                     fontStyle: FontStyle.italic,
@@ -515,18 +520,6 @@ class _PriceCard extends StatelessWidget {
     );
   }
 
-  /// Naive Indian-numbering grouping (lakh / crore) — `123456` →
-  /// `1,23,456`. Good enough for a price card; we don't pull in the
-  /// `intl` package just for this.
-  String _formatInr(int n) {
-    final s = n.toString();
-    if (s.length <= 3) return s;
-    final last3 = s.substring(s.length - 3);
-    final rest = s.substring(0, s.length - 3);
-    final restGrouped = rest
-        .replaceAllMapped(RegExp(r'(\d)(?=(\d{2})+$)'), (m) => '${m[1]},');
-    return '$restGrouped,$last3';
-  }
 }
 
 // ────────────────────────────────────────────────────────────
