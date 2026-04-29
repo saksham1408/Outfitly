@@ -82,12 +82,20 @@ class AuthService {
   /// Save or update the user's profile data in the profiles table.
   /// Accepts an explicit [userId] for cases where currentUser may be null
   /// (e.g. when email confirmation is required after signup).
+  ///
+  /// [country] is an ISO 3166-1 alpha-2 code (e.g. `IN`, `GB`) chosen
+  /// by the user during register. Drives both the phone-number prefix
+  /// shown in the auth flow and the currency the rest of the app
+  /// renders prices in (via `Money.setOverrideCountry`). Stored on the
+  /// `profiles.country` column — schema in
+  /// `supabase/migrations/030_profiles_country.sql`.
   Future<void> upsertProfile({
     required String fullName,
     required String phone,
     required String email,
     String? gender,
     String? location,
+    String? country,
     List<String>? preferredStyle,
     String? initialInterest,
     String? userId,
@@ -102,9 +110,37 @@ class AuthService {
       'email': email,
       if (gender != null) 'gender': gender,
       if (location != null) 'location': location,
+      if (country != null) 'country': country,
       if (preferredStyle != null) 'preferred_style': preferredStyle,
       if (initialInterest != null) 'initial_interest': initialInterest,
     });
+  }
+
+  /// Read just the saved country code for the current session — used
+  /// by the login flow to seed `Money.setOverrideCountry` so the user
+  /// lands on the home screen with their saved currency already
+  /// rendered, no flicker.
+  ///
+  /// Returns `null` if no row exists or the column is empty (e.g.
+  /// pre-migration legacy account).
+  Future<String?> fetchSavedCountry() async {
+    final user = currentUser;
+    if (user == null) return null;
+
+    try {
+      final row = await _client
+          .from('profiles')
+          .select('country')
+          .eq('id', user.id)
+          .maybeSingle();
+      final code = row?['country'] as String?;
+      if (code == null || code.trim().isEmpty) return null;
+      return code.trim().toUpperCase();
+    } catch (e) {
+      // Column may not exist yet on old environments — don't crash.
+      // ignore: avoid_print
+      return null;
+    }
   }
 
   /// Check if onboarding (style quiz) is complete.

@@ -258,7 +258,14 @@ abstract final class AppRouter {
       GoRoute(
         path: '/order-success',
         name: 'orderSuccess',
-        builder: (context, state) => const OrderSuccessScreen(),
+        // `tailorVisitId` is only present when the order was placed
+        // with a home-tailor-visit. The success screen reads it to
+        // surface a "TRACK TAILOR VISIT" CTA that deep-links into
+        // the Realtime tracker — without it, the customer would
+        // never see the Partner app's status updates flow through.
+        builder: (context, state) => OrderSuccessScreen(
+          tailorVisitId: state.uri.queryParameters['tailorVisitId'],
+        ),
       ),
 
       // ── Wardrobe Calendar & Planner ──

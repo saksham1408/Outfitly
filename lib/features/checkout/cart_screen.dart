@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/locale/money.dart';
 import '../../core/network/supabase_client.dart';
 import '../../core/theme/theme.dart';
+import '../measurements/data/tailor_appointment_service.dart';
 import 'models/order_payload.dart';
 
 class CartScreen extends StatefulWidget {
@@ -31,8 +33,46 @@ class _CartScreenState extends State<CartScreen> {
       final orderJson = payload.toOrderJson(user.id);
       await AppSupabase.client.from('orders').insert(orderJson);
 
+      // If the customer asked for a home tailor visit, dispatch a row
+      // to `tailor_appointments` so the Partner app's realtime radar
+      // lights up on every online tailor's phone within a second.
+      // Wrapped in its own try so an appointment hiccup never strands
+      // a paid order — the order is the source of truth and is already
+      // committed by the time we get here. Worst-case dispatch failure
+      // is fixable by ops via a re-trigger or a manual INSERT.
+      //
+      // We also capture the returned appointment id and thread it to
+      // the success screen as a query param so the customer can deep-
+      // link straight into the live `tailor-visit/<id>` tracker — this
+      // is what closes the loop with the Partner app's status updates.
+      // Without it, the success screen has no way to know an
+      // appointment exists and the customer never sees the Realtime
+      // progression as it happens.
+      String? tailorVisitId;
+      if (payload.measurementMethod == 'tailor' &&
+          payload.tailorScheduledTime != null &&
+          (payload.tailorAddress?.isNotEmpty ?? false)) {
+        try {
+          tailorVisitId = await TailorAppointmentService().requestVisit(
+            address: _composeAppointmentAddress(payload),
+            scheduledTime: payload.tailorScheduledTime!,
+          );
+        } catch (e, st) {
+          debugPrint('Cart: tailor dispatch failed (non-fatal) — $e\n$st');
+        }
+      }
+
       if (!mounted) return;
-      context.go('/order-success');
+      // Build a single Uri so go_router parses the query param correctly
+      // even when [tailorVisitId] is null (in which case we just route
+      // to a clean `/order-success`).
+      final successUri = Uri(
+        path: '/order-success',
+        queryParameters: tailorVisitId == null
+            ? null
+            : {'tailorVisitId': tailorVisitId},
+      );
+      context.go(successUri.toString());
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -41,6 +81,16 @@ class _CartScreenState extends State<CartScreen> {
     } finally {
       if (mounted) setState(() => _placing = false);
     }
+  }
+
+  /// Combine the payload's address + pincode into the single string the
+  /// `tailor_appointments.address` column expects. Pincode is appended
+  /// when present so the partner can geocode without a second lookup.
+  String _composeAppointmentAddress(OrderPayload payload) {
+    final addr = payload.tailorAddress?.trim() ?? '';
+    final pin = payload.tailorPincode?.trim() ?? '';
+    if (pin.isEmpty) return addr;
+    return '$addr — $pin';
   }
 
   @override
@@ -159,7 +209,7 @@ class _CartScreenState extends State<CartScreen> {
                         ],
                         const SizedBox(height: 8),
                         Text(
-                          '₹${payload.price.toStringAsFixed(0)}',
+                          Money.formatStatic(payload.price),
                           style: GoogleFonts.manrope(
                             fontSize: 22,
                             fontWeight: FontWeight.w700,
@@ -206,7 +256,7 @@ class _CartScreenState extends State<CartScreen> {
               ),
               child: Column(
                 children: [
-                  _priceRow('Product', '₹${payload.price.toStringAsFixed(0)}'),
+                  _priceRow('Product', Money.formatStatic(payload.price)),
                   const SizedBox(height: 10),
                   _priceRow('Stitching', 'Included'),
                   const SizedBox(height: 10),
@@ -232,7 +282,7 @@ class _CartScreenState extends State<CartScreen> {
                         ),
                       ),
                       Text(
-                        '₹${payload.price.toStringAsFixed(0)}',
+                        Money.formatStatic(payload.price),
                         style: GoogleFonts.manrope(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
@@ -310,7 +360,7 @@ class _CartScreenState extends State<CartScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'PLACE ORDER  •  ₹${payload.price.toStringAsFixed(0)}',
+                          'PLACE ORDER  •  ${Money.formatStatic(payload.price)}',
                           style: GoogleFonts.manrope(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,

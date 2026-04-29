@@ -1,3 +1,5 @@
+import '../../../../core/locale/money.dart';
+
 /// Product linked to a [SubCategory].
 class Product {
   final String id;
@@ -40,5 +42,7 @@ class Product {
     );
   }
 
-  String get formattedPrice => '\u20B9${price.toStringAsFixed(0)}';
+  /// Locale-aware price string. See [ProductModel.formattedPrice] for
+  /// details — same routing through [Money], same INR-base assumption.
+  String get formattedPrice => Money.formatStatic(price);
 }

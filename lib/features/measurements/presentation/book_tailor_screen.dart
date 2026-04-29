@@ -102,12 +102,17 @@ class _BookTailorScreenState extends State<BookTailorScreen> {
     if (payload != null) {
       // Existing order-checkout integration: stuff the tailor details
       // into the payload and let the cart screen pick up from here.
+      // The cart's `_placeOrder` reads `tailorScheduledTime` (set just
+      // below) to dispatch a `tailor_appointments` row to the Partner
+      // radar — that's what makes a checkout-with-tailor-visit show up
+      // on online tailors' phones in real time.
       payload.measurementMethod = 'tailor';
       payload.tailorAddress =
           '${_addressController.text.trim()}, ${_landmarkController.text.trim()}'.trimRight();
       payload.tailorPincode = _pincodeController.text.trim();
       payload.tailorDate = _selectedDate;
       payload.tailorTimeSlot = _selectedSlot;
+      payload.tailorScheduledTime = _composeScheduledTime();
 
       context.push('/cart', extra: payload);
       return;

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/locale/money.dart';
 import '../../../core/theme/theme.dart';
 import '../services/auth_service.dart';
 
@@ -37,6 +38,18 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+
+      // Apply the country saved on the user's profile to Money before
+      // navigating off the auth flow. This means a user who registered
+      // as France-based on phone A and is now logging in on phone B
+      // (which might be in a different region) sees the correct
+      // currency immediately, no flicker. If the column doesn't exist
+      // yet (pre-migration legacy), we just keep whatever Money already
+      // resolved during boot.
+      final savedCountry = await _authService.fetchSavedCountry();
+      if (savedCountry != null) {
+        await Money.instance.setOverrideCountry(savedCountry);
+      }
 
       if (!mounted) return;
       final onboarded = await _authService.isOnboardingComplete();
