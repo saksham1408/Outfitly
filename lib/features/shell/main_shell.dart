@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/theme.dart';
 import '../catalog/presentation/home/home_screen.dart';
 import '../digital_wardrobe/presentation/daily_stylist_screen.dart';
-import '../outfitly_ai/presentation/outfitly_ai_screen.dart';
+import '../style_assistant/presentation/style_assistant_tab.dart';
 import '../tracking/screens/orders_screen.dart';
 import '../wardrobe_calendar/presentation/wardrobe_calendar_screen.dart';
 
@@ -22,11 +22,13 @@ class _MainShellState extends State<MainShell> {
 
   // Five root tabs. "Dress Me" sits between Closet and Orders so the
   // journey reads naturally: browse → chat AI → manage clothes → get
-  // styled → track orders. It's the single entry point into the
-  // Gemini-powered daily stylist + "style a new piece" flow.
+  // styled → track orders. The VASTRAHUB AI tab opens the
+  // StyleAssistantTab gate, which forces a one-time Style Quiz on
+  // first visit and then drops the user straight into the Gemini
+  // chat on every subsequent open.
   final _screens = const [
     HomeScreen(),
-    OutfitlyAiScreen(),
+    StyleAssistantTab(),
     WardrobeCalendarScreen(),
     DailyStylistScreen(),
     OrdersScreen(),
