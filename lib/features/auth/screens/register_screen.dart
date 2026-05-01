@@ -65,11 +65,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     });
 
-    // Apply the new country to the Money service immediately so the
-    // user sees the correct currency on the next screen they hit
-    // post-signup (style quiz / home), even before the upsert lands.
-    // The persisted override is the source of truth here.
-    await Money.instance.setOverrideCountry(picked);
+    // NOTE: we deliberately do NOT call Money.setOverrideCountry here.
+    // Eagerly persisting on every picker tap would change the catalog
+    // currency for users who are just browsing the picker without
+    // committing to a registration — and that override sticks in
+    // SharedPreferences until something else clears it. Currency is
+    // only committed at submit-time inside [_register], so backing out
+    // of this screen leaves the active currency untouched.
   }
 
   static const _styleOptions = ['Traditional', 'Modern', 'Fusion'];

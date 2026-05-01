@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/locale/country_dial_codes.dart';
+import '../../../core/locale/country_picker.dart';
+import '../../../core/locale/money.dart';
 import '../../../core/network/supabase_client.dart';
 import '../../../core/theme/theme.dart';
 import '../../auth/services/auth_service.dart';
@@ -42,6 +45,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
     } catch (e) {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// Open the country picker and, if the user picks something new,
+  /// (a) persist it to their profile row, and (b) flip Money's
+  /// override so prices across the app repaint instantly.
+  ///
+  /// This is the "I registered as France by mistake" recovery path —
+  /// without this, the only way to switch currency was to delete and
+  /// recreate the account.
+  Future<void> _changeCountry() async {
+    final current = (_profile?['country'] as String?) ??
+        Money.instance.overrideCountry ??
+        kDefaultCountryCode;
+
+    final picked = await showCountryPicker(context, initialCode: current);
+    if (picked == null || picked == current) return;
+    if (!mounted) return;
+
+    // Optimistically apply locally so the catalog repaints in the new
+    // currency immediately. If the DB update fails, we surface a
+    // snackbar but the local override sticks — user can retry from
+    // the same screen, currency stays usable in the meantime.
+    await Money.instance.setOverrideCountry(picked);
+
+    try {
+      final user = _authService.currentUser;
+      if (user != null) {
+        await AppSupabase.client.from('profiles').update({
+          'country': picked,
+        }).eq('id', user.id);
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _profile = {...?_profile, 'country': picked};
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Country updated to ${dialInfoForCountry(picked).name}',
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Couldn\'t save to your profile: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
@@ -164,6 +221,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           'Update your style quiz answers',
                           onTap: () => context.push('/style-quiz'),
                         ),
+                        _menuTile(
+                          Icons.public_outlined,
+                          'Country & Currency',
+                          _countrySubtitle(),
+                          onTap: _changeCountry,
+                        ),
 
                         const SizedBox(height: 24),
                         Text(
@@ -251,6 +314,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
     );
+  }
+
+  /// Build the subtitle shown under "Country & Currency" — e.g.
+  /// `India · ₹ INR`. We prefer the saved profile country first,
+  /// falling back to whatever Money is currently rendering with so
+  /// pre-migration accounts (no `profiles.country` value) still show
+  /// something honest instead of an empty subtitle.
+  String _countrySubtitle() {
+    final saved = (_profile?['country'] as String?) ??
+        Money.instance.overrideCountry;
+    final info = dialInfoForCountry(saved);
+    final c = Money.instance.currency;
+    return '${info.name} · ${c.symbol} ${c.code}';
   }
 
   Widget _menuTile(IconData icon, String title, String subtitle,
