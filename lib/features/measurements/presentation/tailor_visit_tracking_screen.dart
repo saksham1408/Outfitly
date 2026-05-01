@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/theme.dart';
 import '../data/tailor_appointment_service.dart';
+import '../data/tailor_review_service.dart';
 import '../domain/tailor_visit.dart';
 
 /// Live tracker for a single home-tailor-visit request.
@@ -33,6 +35,33 @@ class TailorVisitTrackingScreen extends StatefulWidget {
 
 class _TailorVisitTrackingScreenState extends State<TailorVisitTrackingScreen> {
   final _service = TailorAppointmentService();
+  final _reviewService = TailorReviewService();
+
+  /// True once we've checked the DB and confirmed the customer has
+  /// already left a review for this appointment. Suppresses the
+  /// "Rate your tailor" CTA on subsequent visits to the screen so
+  /// the surface stays clean.
+  bool _alreadyReviewed = false;
+  bool _reviewLookupDone = false;
+
+  Future<void> _checkExistingReview() async {
+    if (_reviewLookupDone) return;
+    final existing =
+        await _reviewService.fetchByAppointment(widget.appointmentId);
+    if (!mounted) return;
+    setState(() {
+      _alreadyReviewed = existing != null;
+      _reviewLookupDone = true;
+    });
+  }
+
+  Future<void> _openReviewScreen() async {
+    final submitted = await context
+        .push<bool>('/tailor-review/${widget.appointmentId}');
+    if (submitted == true && mounted) {
+      setState(() => _alreadyReviewed = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,12 +89,39 @@ class _TailorVisitTrackingScreenState extends State<TailorVisitTrackingScreen> {
           }
 
           final visit = snapshot.data!;
+
+          // Lazy-fetch the existing review once the visit hits the
+          // completed state — until then there's nothing to check
+          // for, and we'd just be running a dead query on every
+          // stream emission.
+          if (visit.isCompleted && !_reviewLookupDone) {
+            _checkExistingReview();
+          }
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _StatusHero(visit: visit),
+
+                // ── "Rate your tailor" CTA ──
+                // Only renders when the visit is completed AND the
+                // customer hasn't already submitted a review (we
+                // re-check on the way back from the review screen
+                // so the card disappears immediately after a
+                // successful submit). The CTA isn't a passive
+                // notice — it's an active gold pill so the request
+                // for feedback feels celebratory rather than
+                // chore-like.
+                if (visit.isCompleted && !_alreadyReviewed) ...[
+                  const SizedBox(height: 16),
+                  _RateTailorCta(
+                    tailorName: visit.tailor?.fullName ?? 'your tailor',
+                    onTap: _openReviewScreen,
+                  ),
+                ],
+
                 const SizedBox(height: 24),
                 _sectionLabel('YOUR TAILOR'),
                 const SizedBox(height: 12),
@@ -692,6 +748,84 @@ class _ErrorState extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// "Rate your tailor" CTA — only rendered when the visit has
+/// completed and no review exists yet. Gold-tinted card with stars
+/// + a chevron so it reads as an action, not a passive update.
+class _RateTailorCta extends StatelessWidget {
+  const _RateTailorCta({required this.tailorName, required this.onTap});
+
+  final String tailorName;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.accent.withAlpha(20),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.accent.withAlpha(60)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.accent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.star_rounded,
+                  size: 24,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Rate $tailorName',
+                      style: GoogleFonts.manrope(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Your review helps other customers + rewards great work',
+                      style: GoogleFonts.manrope(
+                        fontSize: 11.5,
+                        color: AppColors.textSecondary,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: AppColors.accent.withAlpha(180),
+              ),
+            ],
+          ),
         ),
       ),
     );

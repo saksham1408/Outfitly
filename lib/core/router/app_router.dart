@@ -16,6 +16,7 @@ import '../../features/checkout/models/order_payload.dart';
 import '../../features/measurements/presentation/measurement_decision_screen.dart';
 import '../../features/measurements/presentation/manual_measurement_screen.dart';
 import '../../features/measurements/presentation/book_tailor_screen.dart';
+import '../../features/measurements/presentation/tailor_review_screen.dart';
 import '../../features/measurements/presentation/tailor_selection_screen.dart';
 import '../../features/measurements/presentation/ai_scanner/ai_scan_intro_screen.dart';
 import '../../features/measurements/presentation/ai_scanner/ai_camera_screen.dart';
@@ -344,6 +345,21 @@ abstract final class AppRouter {
         path: '/tailor-visit/:id',
         name: 'tailorVisit',
         builder: (context, state) => TailorVisitTrackingScreen(
+          appointmentId: state.pathParameters['id']!,
+        ),
+      ),
+
+      // ── Tailor Review (post-visit) ──
+      // Pushed from the visit tracker the moment the row hits
+      // 'completed'. Customer leaves 1-5 stars + an optional
+      // comment, the recompute trigger on tailor_reviews updates
+      // the tailor's aggregate rating + count on tailor_profiles
+      // server-side, and the marketplace card reflects the new
+      // numbers without any extra client work.
+      GoRoute(
+        path: '/tailor-review/:id',
+        name: 'tailorReview',
+        builder: (context, state) => TailorReviewScreen(
           appointmentId: state.pathParameters['id']!,
         ),
       ),
