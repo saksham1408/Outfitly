@@ -274,6 +274,37 @@ class _WardrobeItemCard extends StatelessWidget {
     }
   }
 
+  Future<void> _toggleShareable(BuildContext context) async {
+    final next = !item.isShareable;
+    try {
+      await WardrobeRepository.instance.setShareable(item, next);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.primary,
+          duration: const Duration(seconds: 2),
+          content: Text(
+            next
+                ? 'Friends can now see this item.'
+                : 'Hidden — friends can no longer see this.',
+            style: GoogleFonts.manrope(color: Colors.white),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.error,
+          content: Text(
+            'Couldn\'t update: $e',
+            style: GoogleFonts.manrope(color: Colors.white),
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -342,6 +373,34 @@ class _WardrobeItemCard extends StatelessWidget {
                   const SizedBox(width: 6),
                   _MiniTag(label: item.styleType, filled: false),
                 ],
+              ),
+            ),
+            // Top-right: shareable / private toggle. Tap to flip;
+            // we colour-code state so a glance at the grid tells you
+            // which pieces are visible to friends. Lock = private,
+            // people = shared.
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Material(
+                color: item.isShareable
+                    ? AppColors.accent
+                    : Colors.black.withAlpha(140),
+                borderRadius: BorderRadius.circular(20),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () => _toggleShareable(context),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Icon(
+                      item.isShareable
+                          ? Icons.groups_rounded
+                          : Icons.lock_outline_rounded,
+                      size: 14,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
               ),
             ),
           ],

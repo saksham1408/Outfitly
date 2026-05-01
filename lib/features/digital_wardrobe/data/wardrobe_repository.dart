@@ -142,6 +142,37 @@ class WardrobeRepository {
     return item;
   }
 
+  /// Flip the `is_shareable` flag on a single wardrobe item.
+  ///
+  /// Updates the Postgres row first so the friends-can-read RLS
+  /// policy reflects the new state immediately (a friend who's mid-
+  /// browse will lose the row on their next refresh). The cached
+  /// list is then patched in-place via copyWith so the closet grid
+  /// rebuilds without a full refetch.
+  ///
+  /// RLS gates the UPDATE to the owning user; if a non-owner sneaks
+  /// the call in, Postgres silently does nothing and the optimistic
+  /// cache flip is reverted on the next refresh.
+  Future<WardrobeItem> setShareable(
+    WardrobeItem item,
+    bool isShareable,
+  ) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw StateError('Must be signed in to update an item.');
+    }
+    await _client
+        .from(_table)
+        .update({'is_shareable': isShareable})
+        .eq('id', item.id);
+
+    final updated = item.copyWith(isShareable: isShareable);
+    _items.value = _items.value
+        .map((i) => i.id == item.id ? updated : i)
+        .toList(growable: false);
+    return updated;
+  }
+
   /// Remove a wardrobe item. Deletes the Postgres row first (so RLS
   /// can reject the call before we touch Storage) then the binary.
   Future<void> delete(WardrobeItem item) async {
