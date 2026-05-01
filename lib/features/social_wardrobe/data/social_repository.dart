@@ -104,24 +104,41 @@ class SocialRepository {
   /// All friend rows where I'm the addressee and status is pending —
   /// drives the "incoming friend request" badge / row in the
   /// dashboard.
+  ///
+  /// Note: we deliberately don't use a PostgREST embed for the
+  /// requester profile here because `friend_connections.requester_id`
+  /// has its FK to `auth.users(id)`, not `profiles(id)`. PostgREST
+  /// can't traverse that transitive relationship for embeds, so the
+  /// embed silently returns 0 rows. Instead we run two queries: fetch
+  /// the connection rows, then a single bulk profiles fetch keyed by
+  /// the requester ids. Two round trips, but reliable.
   Future<List<FriendConnection>> fetchIncomingFriendRequests() async {
     final user = _client.auth.currentUser;
     if (user == null) return const [];
 
     try {
-      final rows = await _client
+      final rawRows = await _client
           .from('friend_connections')
           .select(
-            'id, requester_id, addressee_id, status, created_at, updated_at, '
-            'requester:profiles!requester_id(id, full_name, avatar_url)',
+            'id, requester_id, addressee_id, status, created_at, updated_at',
           )
           .eq('addressee_id', user.id)
           .eq('status', 'pending')
           .order('created_at', ascending: false);
 
-      return (rows as List)
-          .cast<Map<String, dynamic>>()
-          .map(FriendConnection.fromRow)
+      final rows = (rawRows as List).cast<Map<String, dynamic>>();
+      if (rows.isEmpty) return const [];
+
+      final profilesById = await _fetchProfilesByIds(
+        rows.map((r) => r['requester_id'] as String).toSet(),
+      );
+
+      return rows
+          .map((raw) => FriendConnection.fromRow({
+                ...raw,
+                if (profilesById[raw['requester_id']] != null)
+                  'requester': profilesById[raw['requester_id']],
+              }))
           .toList(growable: false);
     } catch (e, st) {
       debugPrint(
@@ -131,66 +148,138 @@ class SocialRepository {
     }
   }
 
+  /// Bulk-fetch a list of profiles by id. Returns a `{id → row}` map
+  /// so callers can stitch the joined data back onto their parent
+  /// rows without an N+1 loop. Empty / null inputs short-circuit to
+  /// an empty map.
+  ///
+  /// Profile reads are gated by the `profiles_friends_select` policy
+  /// (migration 031 + 034) — non-friends quietly drop out. Callers
+  /// must tolerate missing entries (the model defaults to a
+  /// "Friend"-named placeholder so the UI still renders).
+  Future<Map<String, Map<String, dynamic>>> _fetchProfilesByIds(
+    Set<String> ids,
+  ) async {
+    if (ids.isEmpty) return const {};
+    try {
+      final rows = await _client
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .inFilter('id', ids.toList());
+      final map = <String, Map<String, dynamic>>{};
+      for (final raw in (rows as List).cast<Map<String, dynamic>>()) {
+        map[raw['id'] as String] = raw;
+      }
+      return map;
+    } catch (e) {
+      debugPrint('SocialRepository._fetchProfilesByIds failed — $e');
+      return const {};
+    }
+  }
+
   // ── Borrow inbox / outbox ─────────────────────────────────
 
   /// Borrow rows where I'm the *owner* — the "Incoming" tab on the
-  /// requests dashboard. Ordered newest first; the borrower's
-  /// profile + the wardrobe item snapshot are embedded so a single
-  /// fetch paints the whole list.
+  /// requests dashboard. Ordered newest first; counterparty profile
+  /// + wardrobe item snapshot are stitched in client-side via the
+  /// same two-phase pattern as fetchIncomingFriendRequests.
   Future<List<BorrowRequest>> fetchIncomingBorrowRequests() async {
+    return _fetchBorrowRequests(
+      filterColumn: 'owner_id',
+      counterpartyColumn: 'borrower_id',
+    );
+  }
+
+  /// Borrow rows where I'm the *borrower* — the "Outgoing" tab.
+  Future<List<BorrowRequest>> fetchOutgoingBorrowRequests() async {
+    return _fetchBorrowRequests(
+      filterColumn: 'borrower_id',
+      counterpartyColumn: 'owner_id',
+    );
+  }
+
+  /// Shared backbone for the two borrow-list views. Pulls the rows
+  /// matching the perspective filter, then bulk-fetches the
+  /// counterparty profiles + wardrobe-item previews and stitches
+  /// them onto the model in code. We deliberately avoid PostgREST
+  /// embeds here — `borrow_requests.owner_id` and `borrower_id`
+  /// both FK to auth.users, not profiles, so embeds silently return
+  /// nothing.
+  Future<List<BorrowRequest>> _fetchBorrowRequests({
+    required String filterColumn,
+    required String counterpartyColumn,
+  }) async {
     final user = _client.auth.currentUser;
     if (user == null) return const [];
 
     try {
-      final rows = await _client
+      final rawRows = await _client
           .from('borrow_requests')
           .select(
             'id, borrower_id, owner_id, wardrobe_item_id, status, '
-            'borrow_start, borrow_end, note, created_at, updated_at, '
-            'borrower:profiles!borrower_id(id, full_name, avatar_url), '
-            'wardrobe_item:wardrobe_items!wardrobe_item_id(id, image_url, category)',
+            'borrow_start, borrow_end, note, created_at, updated_at',
           )
-          .eq('owner_id', user.id)
+          .eq(filterColumn, user.id)
           .order('created_at', ascending: false);
 
-      return (rows as List)
-          .cast<Map<String, dynamic>>()
-          .map(BorrowRequest.fromRow)
-          .toList(growable: false);
+      final rows = (rawRows as List).cast<Map<String, dynamic>>();
+      if (rows.isEmpty) return const [];
+
+      final counterIds =
+          rows.map((r) => r[counterpartyColumn] as String).toSet();
+      final itemIds =
+          rows.map((r) => r['wardrobe_item_id'] as String).toSet();
+
+      final profilesFuture = _fetchProfilesByIds(counterIds);
+      final itemsFuture = _fetchWardrobeItemPreviewsByIds(itemIds);
+
+      final profilesById = await profilesFuture;
+      final itemsById = await itemsFuture;
+
+      // Stash each row's joined payload under both possible alias
+      // keys so the model's fromRow() resolves regardless of which
+      // perspective embedded which side.
+      return rows.map((raw) {
+        final counter = profilesById[raw[counterpartyColumn]];
+        final item = itemsById[raw['wardrobe_item_id']];
+        return BorrowRequest.fromRow({
+          ...raw,
+          if (counter != null) 'borrower': counter,
+          if (counter != null) 'owner': counter,
+          if (item != null) 'wardrobe_item': item,
+        });
+      }).toList(growable: false);
     } catch (e, st) {
       debugPrint(
-        'SocialRepository.fetchIncomingBorrowRequests failed — $e\n$st',
+        'SocialRepository._fetchBorrowRequests($filterColumn) failed — $e\n$st',
       );
       return const [];
     }
   }
 
-  /// Borrow rows where I'm the *borrower* — the "Outgoing" tab.
-  Future<List<BorrowRequest>> fetchOutgoingBorrowRequests() async {
-    final user = _client.auth.currentUser;
-    if (user == null) return const [];
-
+  /// Bulk-fetch the minimal `wardrobe_items` projection used by the
+  /// borrow list. Friends-readable rows come back via the
+  /// `wardrobe_items_friends_select` policy; rows you no longer have
+  /// access to (e.g. friend revoked, item deleted) drop out
+  /// silently.
+  Future<Map<String, Map<String, dynamic>>>
+      _fetchWardrobeItemPreviewsByIds(Set<String> ids) async {
+    if (ids.isEmpty) return const {};
     try {
       final rows = await _client
-          .from('borrow_requests')
-          .select(
-            'id, borrower_id, owner_id, wardrobe_item_id, status, '
-            'borrow_start, borrow_end, note, created_at, updated_at, '
-            'owner:profiles!owner_id(id, full_name, avatar_url), '
-            'wardrobe_item:wardrobe_items!wardrobe_item_id(id, image_url, category)',
-          )
-          .eq('borrower_id', user.id)
-          .order('created_at', ascending: false);
-
-      return (rows as List)
-          .cast<Map<String, dynamic>>()
-          .map(BorrowRequest.fromRow)
-          .toList(growable: false);
-    } catch (e, st) {
+          .from('wardrobe_items')
+          .select('id, image_url, category')
+          .inFilter('id', ids.toList());
+      final map = <String, Map<String, dynamic>>{};
+      for (final raw in (rows as List).cast<Map<String, dynamic>>()) {
+        map[raw['id'] as String] = raw;
+      }
+      return map;
+    } catch (e) {
       debugPrint(
-        'SocialRepository.fetchOutgoingBorrowRequests failed — $e\n$st',
+        'SocialRepository._fetchWardrobeItemPreviewsByIds failed — $e',
       );
-      return const [];
+      return const {};
     }
   }
 
@@ -225,60 +314,86 @@ class SocialRepository {
   ///   * `borrow_approved` / `borrow_active` / `borrow_returned` —
   ///     lifecycle events on borrow rows where I'm a party
   ///
-  /// Limited to the last 50 events across both buckets, sorted by
-  /// time. Implemented client-side rather than a Postgres view
-  /// because (a) the result is small, (b) it composes with RLS
-  /// without a SECURITY DEFINER, and (c) the cardinality keeps it
-  /// O(1) round-trips.
+  /// Limited to the last [limit] events across both buckets, sorted
+  /// by time. Same two-phase pattern as the borrow lists — fetch
+  /// rows, then a bulk profile fetch keyed by the actor ids.
   Future<List<ActivityEntry>> fetchRecentActivity({int limit = 30}) async {
     final user = _client.auth.currentUser;
     if (user == null) return const [];
 
     try {
-      // Two parallel reads — the borrow lifecycle + recent items
-      // belonging to friends. The friends-read RLS policy covers
-      // the wardrobe items join automatically.
-      final results = await Future.wait([
-        _client
-            .from('borrow_requests')
-            .select(
-              'id, status, updated_at, borrower_id, owner_id, '
-              'borrower:profiles!borrower_id(id, full_name, avatar_url), '
-              'owner:profiles!owner_id(id, full_name, avatar_url), '
-              'wardrobe_item:wardrobe_items!wardrobe_item_id(id, image_url, category)',
-            )
-            .or('borrower_id.eq.${user.id},owner_id.eq.${user.id}')
-            .order('updated_at', ascending: false)
-            .limit(limit),
-        // Friends' newly uploaded items — `is_shareable=true` filter
-        // matches the friends-can-read RLS condition.
-        _client
-            .from('wardrobe_items')
-            .select(
-              'id, user_id, image_url, category, created_at, '
-              'owner:profiles!user_id(id, full_name, avatar_url)',
-            )
-            .eq('is_shareable', true)
-            .neq('user_id', user.id)
-            .order('created_at', ascending: false)
-            .limit(limit),
-      ]);
+      // Two parallel raw reads.
+      final borrowFuture = _client
+          .from('borrow_requests')
+          .select(
+            'id, status, updated_at, borrower_id, owner_id, wardrobe_item_id',
+          )
+          .or('borrower_id.eq.${user.id},owner_id.eq.${user.id}')
+          .order('updated_at', ascending: false)
+          .limit(limit);
+      final itemsFuture = _client
+          .from('wardrobe_items')
+          .select(
+            'id, user_id, image_url, category, created_at',
+          )
+          .eq('is_shareable', true)
+          .neq('user_id', user.id)
+          .order('created_at', ascending: false)
+          .limit(limit);
+
+      final borrowRows = (await borrowFuture as List)
+          .cast<Map<String, dynamic>>();
+      final itemRows =
+          (await itemsFuture as List).cast<Map<String, dynamic>>();
+
+      // Collect every user id we'll need to render the actor on each
+      // entry, plus item ids for the borrow rows' previews.
+      final actorIds = <String>{};
+      for (final r in borrowRows) {
+        actorIds.add(r['borrower_id'] as String);
+        actorIds.add(r['owner_id'] as String);
+      }
+      for (final r in itemRows) {
+        actorIds.add(r['user_id'] as String);
+      }
+      final borrowItemIds = borrowRows
+          .map((r) => r['wardrobe_item_id'] as String)
+          .toSet();
+
+      final profilesFuture = _fetchProfilesByIds(actorIds);
+      final borrowItemsFuture =
+          _fetchWardrobeItemPreviewsByIds(borrowItemIds);
+      final profilesById = await profilesFuture;
+      final borrowItemsById = await borrowItemsFuture;
 
       final entries = <ActivityEntry>[];
 
       // Borrow-lifecycle events.
-      for (final row in (results[0] as List).cast<Map<String, dynamic>>()) {
+      for (final row in borrowRows) {
         final status = BorrowStatus.tryParse(row['status'] as String?);
-        // Skip the 'pending' bucket — it's already on the requests
-        // dashboard with an Approve/Decline pair; surfacing it here
-        // too would feel duplicative.
+        // Skip 'pending' here — it's already surfaced on the
+        // requests dashboard.
         if (status == BorrowStatus.pending) continue;
-        entries.add(ActivityEntry._fromBorrow(row, status, user.id));
+        final stitched = <String, dynamic>{
+          ...row,
+          if (profilesById[row['borrower_id']] != null)
+            'borrower': profilesById[row['borrower_id']],
+          if (profilesById[row['owner_id']] != null)
+            'owner': profilesById[row['owner_id']],
+          if (borrowItemsById[row['wardrobe_item_id']] != null)
+            'wardrobe_item': borrowItemsById[row['wardrobe_item_id']],
+        };
+        entries.add(ActivityEntry._fromBorrow(stitched, status, user.id));
       }
 
       // Friend-added-item events.
-      for (final row in (results[1] as List).cast<Map<String, dynamic>>()) {
-        entries.add(ActivityEntry._fromItemAdded(row));
+      for (final row in itemRows) {
+        final stitched = <String, dynamic>{
+          ...row,
+          if (profilesById[row['user_id']] != null)
+            'owner': profilesById[row['user_id']],
+        };
+        entries.add(ActivityEntry._fromItemAdded(stitched));
       }
 
       entries.sort((a, b) => b.timestamp.compareTo(a.timestamp));

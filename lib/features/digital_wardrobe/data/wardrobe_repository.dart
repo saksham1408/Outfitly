@@ -172,44 +172,61 @@ class WardrobeRepository {
   // ── Social: friends, friend closet, borrow request ──────────
 
   /// Fetch the calling user's accepted friends, with the *other*
-  /// party's basic profile embedded so the dashboard can render
-  /// avatars + names in a single round-trip.
+  /// party's basic profile stitched in client-side.
   ///
-  /// We send two embedded selects (one for each direction) because a
-  /// friendship row points one way (requester→addressee) but at the
-  /// app layer the friendship is symmetric. We resolve "the other
-  /// party" client-side via [FriendConnection.otherUserId].
+  /// Two-phase: pull friend_connections rows, then a single bulk
+  /// `profiles` fetch keyed by every "other" user id. We avoid
+  /// PostgREST embeds because `friend_connections.requester_id` /
+  /// `addressee_id` both FK to `auth.users`, not `profiles`, so
+  /// embeds silently return zero rows.
   Future<List<FriendConnection>> fetchFriends() async {
     final user = _client.auth.currentUser;
     if (user == null) return const [];
 
     try {
-      final rows = await _client
+      final rawRows = await _client
           .from('friend_connections')
-          // PostgREST embed syntax: pull only the safe profile columns
-          // (id / full_name / avatar_url) from BOTH possible foreign
-          // keys; the model's fromRow() picks whichever was non-null.
           .select(
-            'id, requester_id, addressee_id, status, created_at, updated_at, '
-            'requester:profiles!requester_id(id, full_name, avatar_url), '
-            'addressee:profiles!addressee_id(id, full_name, avatar_url)',
+            'id, requester_id, addressee_id, status, created_at, updated_at',
           )
           .eq('status', 'accepted')
           .order('updated_at', ascending: false);
 
-      return (rows as List)
-          .cast<Map<String, dynamic>>()
-          .map((raw) {
-            // The model accepts an `addressee` or `requester` embed
-            // alias; pre-process here to keep the *other* party in
-            // the predictable `addressee` slot regardless of who
-            // sent the original request.
-            final myId = user.id;
-            final isMeRequester = raw['requester_id'] == myId;
-            final embed = isMeRequester ? raw['addressee'] : raw['requester'];
-            return FriendConnection.fromRow({...raw, 'addressee': embed});
-          })
-          .toList(growable: false);
+      final rows = (rawRows as List).cast<Map<String, dynamic>>();
+      if (rows.isEmpty) return const [];
+
+      // Collect "the other party" id for each row.
+      final myId = user.id;
+      final otherIds = rows.map((r) {
+        return (r['requester_id'] == myId
+            ? r['addressee_id']
+            : r['requester_id']) as String;
+      }).toSet();
+
+      final profileRows = await _client
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .inFilter('id', otherIds.toList());
+
+      final profilesById = <String, Map<String, dynamic>>{};
+      for (final raw in (profileRows as List).cast<Map<String, dynamic>>()) {
+        profilesById[raw['id'] as String] = raw;
+      }
+
+      return rows.map((raw) {
+        final isMeRequester = raw['requester_id'] == myId;
+        final otherId = isMeRequester
+            ? raw['addressee_id'] as String
+            : raw['requester_id'] as String;
+        // Stash the "other" profile under the `addressee` alias the
+        // model already understands, regardless of who sent the
+        // original request.
+        return FriendConnection.fromRow({
+          ...raw,
+          if (profilesById[otherId] != null)
+            'addressee': profilesById[otherId],
+        });
+      }).toList(growable: false);
     } catch (e, st) {
       debugPrint('WardrobeRepository.fetchFriends failed — $e\n$st');
       return const [];
