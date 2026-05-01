@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/network/supabase_client.dart';
+import '../../social_wardrobe/models/borrow_request.dart';
+import '../../social_wardrobe/models/friend_connection.dart';
 import '../models/wardrobe_item.dart';
 
 /// Supabase-backed store of the user's Personal Digital Wardrobe.
@@ -165,6 +167,108 @@ class WardrobeRepository {
     }
 
     _items.value = _items.value.where((i) => i.id != item.id).toList();
+  }
+
+  // ── Social: friends, friend closet, borrow request ──────────
+
+  /// Fetch the calling user's accepted friends, with the *other*
+  /// party's basic profile embedded so the dashboard can render
+  /// avatars + names in a single round-trip.
+  ///
+  /// We send two embedded selects (one for each direction) because a
+  /// friendship row points one way (requester→addressee) but at the
+  /// app layer the friendship is symmetric. We resolve "the other
+  /// party" client-side via [FriendConnection.otherUserId].
+  Future<List<FriendConnection>> fetchFriends() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return const [];
+
+    try {
+      final rows = await _client
+          .from('friend_connections')
+          // PostgREST embed syntax: pull only the safe profile columns
+          // (id / full_name / avatar_url) from BOTH possible foreign
+          // keys; the model's fromRow() picks whichever was non-null.
+          .select(
+            'id, requester_id, addressee_id, status, created_at, updated_at, '
+            'requester:profiles!requester_id(id, full_name, avatar_url), '
+            'addressee:profiles!addressee_id(id, full_name, avatar_url)',
+          )
+          .eq('status', 'accepted')
+          .order('updated_at', ascending: false);
+
+      return (rows as List)
+          .cast<Map<String, dynamic>>()
+          .map((raw) {
+            // The model accepts an `addressee` or `requester` embed
+            // alias; pre-process here to keep the *other* party in
+            // the predictable `addressee` slot regardless of who
+            // sent the original request.
+            final myId = user.id;
+            final isMeRequester = raw['requester_id'] == myId;
+            final embed = isMeRequester ? raw['addressee'] : raw['requester'];
+            return FriendConnection.fromRow({...raw, 'addressee': embed});
+          })
+          .toList(growable: false);
+    } catch (e, st) {
+      debugPrint('WardrobeRepository.fetchFriends failed — $e\n$st');
+      return const [];
+    }
+  }
+
+  /// Read every `is_shareable=true` wardrobe item belonging to a
+  /// connected friend. The RLS policy `wardrobe_items_friends_select`
+  /// enforces the friendship; if the caller passes a non-friend's id
+  /// this just returns an empty list (Postgres filters us out).
+  ///
+  /// We populate `userId` on each model so the borrow flow has the
+  /// owner id without an extra round-trip.
+  Future<List<WardrobeItem>> fetchFriendWardrobe(String friendId) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return const [];
+
+    try {
+      final rows = await _client
+          .from(_table)
+          .select()
+          .eq('user_id', friendId)
+          .eq('is_shareable', true)
+          .order('created_at', ascending: false);
+
+      return (rows as List)
+          .cast<Map<String, dynamic>>()
+          .map(WardrobeItem.fromRow)
+          .toList(growable: false);
+    } catch (e, st) {
+      debugPrint(
+        'WardrobeRepository.fetchFriendWardrobe($friendId) failed — $e\n$st',
+      );
+      return const [];
+    }
+  }
+
+  /// Send a borrow request. Returns the persisted [BorrowRequest]
+  /// (with server-issued id and timestamps) so the caller can splice
+  /// it into the outgoing list optimistically.
+  ///
+  /// The call relies on RLS for safety: the
+  /// `borrow_requests_borrower_insert` policy in migration 033
+  /// asserts (a) the caller is a friend of the owner, (b) the item
+  /// belongs to the owner, and (c) the item is `is_shareable=true`.
+  /// If any of those fail the row insert throws and we surface it.
+  Future<BorrowRequest> sendBorrowRequest(BorrowRequest request) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw StateError('Must be signed in to request a borrow.');
+    }
+
+    final inserted = await _client
+        .from('borrow_requests')
+        .insert(request.toInsertRow())
+        .select()
+        .single();
+
+    return BorrowRequest.fromRow(inserted);
   }
 
   // ── helpers ─────────────────────────────────────────────────

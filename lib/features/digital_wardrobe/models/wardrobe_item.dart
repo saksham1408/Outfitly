@@ -56,6 +56,19 @@ class WardrobeItem {
   final String styleType;
   final DateTime createdAt;
 
+  /// Whether accepted friends can see this item in their Friend Closet
+  /// view. Defaults to true — onboarding feels social out of the box;
+  /// users opt individual pieces *out*, not *in*. Mirrors the
+  /// `wardrobe_items.is_shareable` column added in migration 031.
+  final bool isShareable;
+
+  /// The owner of this row. Always populated when [WardrobeItem] is
+  /// fetched from a friend's closet (we need the id to send a borrow
+  /// request) and when fetched from your own (it's just `auth.uid()`).
+  /// Null only on locally-constructed transient instances that haven't
+  /// hit Postgres yet.
+  final String? userId;
+
   const WardrobeItem({
     required this.id,
     required this.imageUrl,
@@ -63,15 +76,22 @@ class WardrobeItem {
     required this.color,
     required this.styleType,
     required this.createdAt,
+    this.isShareable = true,
+    this.userId,
   });
 
   /// Build from a PostgREST row (`public.wardrobe_items`).
   factory WardrobeItem.fromRow(Map<String, dynamic> row) => WardrobeItem(
         id: row['id'] as String,
+        userId: row['user_id'] as String?,
         imageUrl: (row['image_url'] as String?) ?? '',
         category: (row['category'] as String?) ?? 'Top',
         color: (row['color'] as String?) ?? '',
         styleType: (row['style_type'] as String?) ?? 'Casual',
+        // Default to true so legacy rows (pre-migration-031) behave as
+        // the new code expects without a backfill — the migration also
+        // backfills, so this is belt-and-braces.
+        isShareable: (row['is_shareable'] as bool?) ?? true,
         createdAt:
             DateTime.tryParse(row['created_at'] as String? ?? '') ??
                 DateTime.now(),
@@ -85,6 +105,7 @@ class WardrobeItem {
         'category': category,
         'color': color,
         'style_type': styleType,
+        'is_shareable': isShareable,
       };
 
   /// Minimal snapshot fed into the Gemini prompt. Drops noisy fields
@@ -97,4 +118,18 @@ class WardrobeItem {
         'color': color,
         'style': styleType,
       };
+
+  /// Cheap copy with the shareable flag flipped — used by the toggle
+  /// on each item card in the Personal Closet so the UI updates
+  /// immediately while the Postgres UPDATE is in flight.
+  WardrobeItem copyWith({bool? isShareable}) => WardrobeItem(
+        id: id,
+        userId: userId,
+        imageUrl: imageUrl,
+        category: category,
+        color: color,
+        styleType: styleType,
+        createdAt: createdAt,
+        isShareable: isShareable ?? this.isShareable,
+      );
 }

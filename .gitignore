@@ -52,3 +52,6 @@ app.*.map.json
 # Directus runtime state (Docker volumes, uploads, local SQLite)
 directus/data/
 directus/.env
+
+# Supabase CLI working directory (downloaded binaries / cached state)
+supabase/.temp/
