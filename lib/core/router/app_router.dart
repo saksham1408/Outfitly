@@ -46,6 +46,9 @@ import '../../features/digital_wardrobe/presentation/digital_closet_screen.dart'
 import '../../features/digital_wardrobe/presentation/wardrobe_upload_screen.dart';
 import '../../features/digital_wardrobe/presentation/daily_stylist_screen.dart';
 import '../../features/digital_wardrobe/presentation/style_anchor_screen.dart';
+import '../../features/social_wardrobe/presentation/social_dashboard_screen.dart';
+import '../../features/social_wardrobe/presentation/friend_closet_screen.dart';
+import '../../features/social_wardrobe/presentation/borrow_requests_screen.dart';
 
 /// Central route configuration for the app.
 abstract final class AppRouter {
@@ -389,6 +392,29 @@ abstract final class AppRouter {
         path: '/digital-wardrobe/style-anchor',
         name: 'styleAnchor',
         builder: (context, state) => const StyleAnchorScreen(),
+      ),
+
+      // ── Friend Closet Sharing ──
+      // The "My Network" social entry point. Users discover and add
+      // friends here, see a horizontal row of accepted friends'
+      // avatars, and tap into the friend-closet view at the route
+      // below. Activity feed lives on the dashboard too.
+      GoRoute(
+        path: '/social',
+        name: 'socialDashboard',
+        builder: (context, state) => const SocialDashboardScreen(),
+      ),
+      GoRoute(
+        path: '/friend-closet/:friendId',
+        name: 'friendCloset',
+        builder: (context, state) => FriendClosetScreen(
+          friendId: state.pathParameters['friendId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/borrow-requests',
+        name: 'borrowRequests',
+        builder: (context, state) => const BorrowRequestsScreen(),
       ),
     ],
   );

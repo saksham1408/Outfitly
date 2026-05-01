@@ -66,6 +66,18 @@ class _DigitalClosetScreenState extends State<DigitalClosetScreen> {
         ),
         centerTitle: false,
         actions: [
+          // "My Network" → the social dashboard. Sits to the left of
+          // Dress Me because the social loop is the more recent
+          // (and viral) flow — we want the icon visible without the
+          // user having to discover it through the menu.
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Center(
+              child: _NetworkPill(
+                onTap: () => context.push('/social'),
+              ),
+            ),
+          ),
           // Shortcut into the daily stylist for users already in the
           // closet — they usually want to try an outfit after adding.
           Padding(
@@ -440,6 +452,45 @@ class _EmptyState extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Sister pill to [_DressMePill] — opens the Friend Closet social
+/// dashboard. Uses the deeper primary tone so the two pills sit
+/// beside each other without competing for attention.
+class _NetworkPill extends StatelessWidget {
+  final VoidCallback onTap;
+  const _NetworkPill({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.primary,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.groups_rounded, size: 14, color: Colors.white),
+              const SizedBox(width: 6),
+              Text(
+                'My Network',
+                style: GoogleFonts.manrope(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
