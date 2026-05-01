@@ -145,13 +145,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     } catch (e) {
       final msg = e.toString();
-      if (msg.contains('already registered')) {
-        setState(
-          () => _error = 'This email is already registered. Try logging in.',
-        );
+      final lower = msg.toLowerCase();
+
+      // Surface the real reason instead of a generic "try again" so we
+      // can actually diagnose what failed. Most common cases:
+      //   * Email already in use (Supabase phrases this 4+ ways).
+      //   * Postgres column mismatch (PGRST204) — leftover from a
+      //     half-applied migration.
+      //   * Auth provider throttling.
+      // We still default to a friendly fallback for anything we don't
+      // recognise; the raw message is appended in dev so the engineer
+      // can see what went wrong without firing up the console.
+      String friendly;
+      if (lower.contains('already registered') ||
+          lower.contains('already exists') ||
+          lower.contains('user already') ||
+          lower.contains('duplicate')) {
+        friendly = 'This email is already registered. Try logging in.';
+      } else if (lower.contains('pgrst204') ||
+          lower.contains('schema cache')) {
+        friendly =
+            'Database schema is out of date. Run the migrations on Supabase, then try again.';
+      } else if (lower.contains('rate') || lower.contains('throttl')) {
+        friendly =
+            'Too many attempts — wait a minute and try again.';
       } else {
-        setState(() => _error = 'Registration failed. Please try again.');
+        friendly = 'Registration failed: $msg';
       }
+      // Log the raw error so it shows up in `flutter run` console too.
+      debugPrint('Register failed: $e');
+      setState(() => _error = friendly);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
