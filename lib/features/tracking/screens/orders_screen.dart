@@ -52,6 +52,12 @@ class _OrdersScreenState extends State<OrdersScreen>
 
   @override
   Widget build(BuildContext context) {
+    // The screen is rendered both as the 5th bottom-nav tab inside
+    // MainShell (no parent route to pop back to) AND as a pushed
+    // route from Profile → Order History (where a back arrow is
+    // expected). Probe `Navigator.canPop` so the back affordance
+    // only renders in the pushed case.
+    final canPop = Navigator.of(context).canPop();
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -64,13 +70,31 @@ class _OrdersScreenState extends State<OrdersScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'My Orders',
-                    style: GoogleFonts.newsreader(
-                      fontSize: 28,
-                      fontStyle: FontStyle.italic,
-                      color: AppColors.primary,
-                    ),
+                  Row(
+                    children: [
+                      if (canPop)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: const Icon(
+                              Icons.arrow_back_ios_new_rounded,
+                              size: 18,
+                              color: AppColors.primary,
+                            ),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                        ),
+                      Text(
+                        'My Orders',
+                        style: GoogleFonts.newsreader(
+                          fontSize: 28,
+                          fontStyle: FontStyle.italic,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
                   ),
                   Container(
                     height: 2,

@@ -24,6 +24,7 @@ import '../../features/checkout/cart_screen.dart';
 import '../../features/checkout/checkout_screen.dart';
 import '../../features/checkout/order_success_screen.dart';
 import '../../features/tracking/screens/order_tracking_screen.dart';
+import '../../features/tracking/screens/orders_screen.dart';
 import '../../features/measurements/presentation/tailor_visit_tracking_screen.dart';
 import '../../features/look_recreator/presentation/recreate_look_screen.dart';
 import '../../features/look_recreator/presentation/analyzing_look_screen.dart';
@@ -298,6 +299,16 @@ abstract final class AppRouter {
       ),
 
       // ── Tracking ──
+      // Standalone Orders route — same screen the MainShell renders
+      // as the 5th bottom-nav tab, but reachable from anywhere via
+      // a normal push (e.g. the Profile screen's "Order History"
+      // tile). Re-using the screen instead of forking it means the
+      // tabbed Orders/Tailor Visits split is consistent everywhere.
+      GoRoute(
+        path: '/orders',
+        name: 'orders',
+        builder: (context, state) => const OrdersScreen(),
+      ),
       GoRoute(
         path: '/tracking/:orderId',
         name: 'tracking',

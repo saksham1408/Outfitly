@@ -258,7 +258,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Icons.shopping_bag_outlined,
                           'Order History',
                           'Track past and current orders',
-                          onTap: () {},
+                          onTap: () => context.push('/orders'),
                         ),
                         _menuTile(
                           Icons.favorite_outline,
