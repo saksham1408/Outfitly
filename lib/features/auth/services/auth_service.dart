@@ -104,7 +104,7 @@ class AuthService {
     final id = userId ?? currentUser?.id;
     if (id == null) return;
 
-    await _client.from('profiles').upsert({
+    final payload = <String, dynamic>{
       'id': id,
       'full_name': fullName,
       'phone': phone,
@@ -114,7 +114,27 @@ class AuthService {
       if (country != null) 'country': country,
       if (preferredStyle != null) 'preferred_style': preferredStyle,
       if (initialInterest != null) 'initial_interest': initialInterest,
-    });
+    };
+
+    try {
+      await _client.from('profiles').upsert(payload);
+    } catch (e) {
+      // Defensive: if the `country` column hasn't been added yet
+      // (migration 030 not applied), strip it and retry instead of
+      // failing the whole signup. The user can still register; the
+      // local Money override will hold their currency choice on this
+      // device until the schema catches up. PostgREST surfaces this
+      // as `PGRST204` — match generously since the message wording
+      // can drift between server versions.
+      final msg = e.toString();
+      final isCountryMissing = country != null &&
+          (msg.contains('PGRST204') ||
+              (msg.contains("'country'") && msg.contains('schema cache')));
+      if (!isCountryMissing) rethrow;
+
+      payload.remove('country');
+      await _client.from('profiles').upsert(payload);
+    }
   }
 
   /// Read just the saved country code for the current session — used
