@@ -19,29 +19,54 @@ class TailorAppointmentService {
 
   final SupabaseClient _client;
 
-  /// Create a pending tailor visit request for the currently-signed-in
+  /// Create a tailor visit request for the currently-signed-in
   /// customer. Returns the new row's id on success.
+  ///
+  /// Two booking modes share this method:
+  ///
+  ///   * **Marketplace** (preferred) — caller passes [tailorId], the
+  ///     uid of a tailor the customer picked on the selection screen.
+  ///     The row lands with `tailor_id = <chosen>` and
+  ///     `status = 'pending_tailor_approval'`. Migration 036's RLS
+  ///     scopes the row to that single tailor's inbox; broadcast
+  ///     does NOT happen.
+  ///
+  ///   * **Auto-dispatch** (legacy fallback) — caller omits
+  ///     [tailorId]. Row lands with `tailor_id = NULL` and
+  ///     `status = 'pending'`, surfacing on every tailor's radar
+  ///     until one claims it. Kept around so old call sites and
+  ///     test seeds keep working.
   ///
   /// Throws [StateError] if the caller isn't authenticated — callers
   /// should guard at the UI layer, but the assert keeps bugs loud.
   Future<String> requestVisit({
     required String address,
     required DateTime scheduledTime,
+    String? tailorId,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) {
       throw StateError('Must be signed in to request a tailor visit.');
     }
 
+    final payload = <String, dynamic>{
+      'user_id': user.id,
+      'address': address,
+      // Always send UTC — the Postgres column is timestamptz, and
+      // the Partner app renders in the tailor's local zone.
+      'scheduled_time': scheduledTime.toUtc().toIso8601String(),
+    };
+    if (tailorId != null) {
+      payload['tailor_id'] = tailorId;
+      payload['status'] = 'pending_tailor_approval';
+    }
+    // No tailorId → server fills `status` from the column DEFAULT
+    // ('pending') and `tailor_id` stays NULL — preserving the
+    // existing auto-dispatch path.
+
     final inserted = await _client
         .from('tailor_appointments')
-        .insert({
-          'user_id': user.id,
-          'address': address,
-          // Always send UTC — the Postgres column is timestamptz, and
-          // the Partner app renders in the tailor's local zone.
-          'scheduled_time': scheduledTime.toUtc().toIso8601String(),
-        })
+        .insert(payload)
         .select('id')
         .single();
 

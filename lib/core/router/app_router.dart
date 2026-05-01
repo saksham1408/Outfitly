@@ -16,6 +16,7 @@ import '../../features/checkout/models/order_payload.dart';
 import '../../features/measurements/presentation/measurement_decision_screen.dart';
 import '../../features/measurements/presentation/manual_measurement_screen.dart';
 import '../../features/measurements/presentation/book_tailor_screen.dart';
+import '../../features/measurements/presentation/tailor_selection_screen.dart';
 import '../../features/measurements/presentation/ai_scanner/ai_scan_intro_screen.dart';
 import '../../features/measurements/presentation/ai_scanner/ai_camera_screen.dart';
 import '../../features/measurements/presentation/ai_scanner/ai_scanning_screen.dart';
@@ -199,6 +200,22 @@ abstract final class AppRouter {
         name: 'bookTailor',
         builder: (context, state) => BookTailorScreen(
           payload: state.extra as OrderPayload?,
+        ),
+      ),
+
+      // ── Tailor Marketplace ──
+      // Inserted between BookTailor (date+address capture) and Cart
+      // (review + place order). The customer browses rated tailor
+      // profiles and explicitly picks one — chosen tailor's id +
+      // name get pinned onto the OrderPayload before /cart, and the
+      // appointment row that the cart's _placeOrder INSERTs lands
+      // with `tailor_id = <chosen>` and
+      // `status = 'pending_tailor_approval'` (per migration 036).
+      GoRoute(
+        path: '/measurements/select-tailor',
+        name: 'selectTailor',
+        builder: (context, state) => TailorSelectionScreen(
+          payload: state.extra as OrderPayload,
         ),
       ),
 

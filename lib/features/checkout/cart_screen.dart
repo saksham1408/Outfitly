@@ -53,9 +53,17 @@ class _CartScreenState extends State<CartScreen> {
           payload.tailorScheduledTime != null &&
           (payload.tailorAddress?.isNotEmpty ?? false)) {
         try {
+          // Marketplace flow: the customer picked a specific tailor
+          // on /measurements/select-tailor, so payload.tailorId is
+          // set and the appointment row lands directly in that
+          // tailor's inbox (migration 036's RLS scope) with status
+          // 'pending_tailor_approval'.
+          // Legacy flow: payload.tailorId is null → row lands as
+          // 'pending' broadcast to every online tailor.
           tailorVisitId = await TailorAppointmentService().requestVisit(
             address: _composeAppointmentAddress(payload),
             scheduledTime: payload.tailorScheduledTime!,
+            tailorId: payload.tailorId,
           );
         } catch (e, st) {
           debugPrint('Cart: tailor dispatch failed (non-fatal) — $e\n$st');
