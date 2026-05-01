@@ -62,12 +62,6 @@ class _MainShellState extends State<MainShell> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 _navItem(0, Icons.home_outlined, Icons.home_rounded, 'Home'),
-                // Centre AI launcher — visually distinct so users see
-                // it as the single entry-point to all the AI features.
-                // Tapping doesn't switch tabs; it pops the sheet.
-                _AiLauncherButton(
-                  onTap: () => showAiToolsSheet(context),
-                ),
                 _navItem(1, Icons.checkroom_outlined,
                     Icons.checkroom_rounded, 'Closet'),
                 // Loop — the social Friend Closet entry. Doesn't have
@@ -77,6 +71,15 @@ class _MainShellState extends State<MainShell> {
                 // never set _currentIndex for it.
                 _LoopNavButton(
                   onTap: () => context.push('/social'),
+                ),
+                // AI launcher — positioned at the right edge so it
+                // anchors the nav as the "creative tools" pole
+                // opposite Home (the "browse" pole). Visually
+                // distinct (brand-coloured pill, hamburger icon)
+                // because tapping it pops a sheet instead of
+                // switching tabs.
+                _AiLauncherButton(
+                  onTap: () => showAiToolsSheet(context),
                 ),
               ],
             ),
