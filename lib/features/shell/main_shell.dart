@@ -172,55 +172,119 @@ class _LoopNavButton extends StatelessWidget {
   }
 }
 
-/// Centre launcher in the bottom nav. Hamburger-style 3-line icon
-/// over a brand-coloured pill so it reads as "more options here"
-/// rather than as a tab destination. Sized slightly larger than the
-/// adjacent nav items so it feels like a primary action.
-class _AiLauncherButton extends StatelessWidget {
+/// Centre/right launcher in the bottom nav.
+///
+/// Visually distinct on purpose — it's the only nav item that *isn't*
+/// a tab, and it's the one we want users to discover first. To make
+/// it pop:
+///
+///   * Circle (not rounded square) so it stands apart from the
+///     square-icon nav rhythm.
+///   * Gold→accent gradient fill — premium, magical, immediately
+///     reads as "different from the others".
+///   * A sparkle icon (`auto_awesome`) — universal AI shorthand.
+///   * Outer glow + drop shadow tinted in the brand gold so the
+///     button looks lit-up against the white nav surface.
+///   * Subtle continuous pulse animation (1.0 → 1.06 → 1.0 over
+///     1.6s) — barely perceptible idle, but enough to draw the eye
+///     when the user is hunting for something new to try.
+///   * The label `Spark` sits below; punchier than the previous
+///     "AI" and pairs naturally with the sparkle glyph.
+class _AiLauncherButton extends StatefulWidget {
   final VoidCallback onTap;
 
   const _AiLauncherButton({required this.onTap});
 
   @override
+  State<_AiLauncherButton> createState() => _AiLauncherButtonState();
+}
+
+class _AiLauncherButtonState extends State<_AiLauncherButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    )..repeat(reverse: true);
+    _scale = Tween<double>(begin: 1.0, end: 1.06).animate(
+      CurvedAnimation(parent: _pulse, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       behavior: HitTestBehavior.opaque,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withAlpha(60),
-                    blurRadius: 14,
-                    offset: const Offset(0, 6),
+            ScaleTransition(
+              scale: _scale,
+              child: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  // Diagonal gold-to-deep-amber gradient — feels
+                  // premium against the warm-beige background and
+                  // pairs with the brand's purple primary without
+                  // competing.
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFFE8B852), // light gold
+                      Color(0xFF8B500A), // accent (deep amber)
+                    ],
                   ),
-                ],
-              ),
-              alignment: Alignment.center,
-              child: const Icon(
-                // Three horizontal lines — reads as "menu of AI tools".
-                Icons.menu_rounded,
-                size: 24,
-                color: Colors.white,
+                  boxShadow: [
+                    // Inner-tight shadow gives the button
+                    // dimensional lift; the wider, softer gold
+                    // halo behind it sells the "lit up" effect.
+                    BoxShadow(
+                      color: const Color(0xFF8B500A).withAlpha(120),
+                      blurRadius: 18,
+                      spreadRadius: 1,
+                      offset: const Offset(0, 6),
+                    ),
+                    BoxShadow(
+                      color: const Color(0xFFE8B852).withAlpha(80),
+                      blurRadius: 24,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  // Sparkle — universal "AI / magic" affordance.
+                  Icons.auto_awesome,
+                  size: 24,
+                  color: Colors.white,
+                ),
               ),
             ),
             const SizedBox(height: 2),
             Text(
-              'AI',
+              'Spark',
               style: GoogleFonts.manrope(
                 fontSize: 9.5,
                 fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-                letterSpacing: 0.5,
+                color: AppColors.accent,
+                letterSpacing: 0.6,
               ),
             ),
           ],
