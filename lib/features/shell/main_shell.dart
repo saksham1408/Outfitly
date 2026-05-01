@@ -3,9 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/theme.dart';
 import '../catalog/presentation/home/home_screen.dart';
-import '../digital_wardrobe/presentation/daily_stylist_screen.dart';
-import '../style_assistant/presentation/style_assistant_tab.dart';
 import '../wardrobe_calendar/presentation/wardrobe_calendar_screen.dart';
+import 'ai_tools_sheet.dart';
 
 class MainShell extends StatefulWidget {
   final int initialIndex;
@@ -19,16 +18,15 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   late int _currentIndex;
 
-  // Four root tabs. The journey now reads: browse → chat AI →
-  // manage clothes → get styled. Orders moved out of the bottom
-  // nav and lives behind the Profile screen's "Order History" tile
-  // (route /orders) — keeping the bottom nav focused on the
-  // commerce + creation loop.
+  // Two real root tabs (Home + Closet). Between them sits a non-tab
+  // "AI" launcher that opens [showAiToolsSheet] — VASTRAHUB AI,
+  // Dress Me, and Recreate a Look all live behind it. The launcher
+  // never sets `_currentIndex`, so tapping it doesn't change the
+  // visible screen; the modal opens on top of whatever you were
+  // already on.
   final _screens = const [
     HomeScreen(),
-    StyleAssistantTab(),
     WardrobeCalendarScreen(),
-    DailyStylistScreen(),
   ];
 
   @override
@@ -60,17 +58,17 @@ class _MainShellState extends State<MainShell> {
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 _navItem(0, Icons.home_outlined, Icons.home_rounded, 'Home'),
-                _navItem(1, Icons.auto_awesome_outlined, Icons.auto_awesome,
-                    'VASTRAHUB AI'),
-                _navItem(2, Icons.checkroom_outlined, Icons.checkroom_rounded,
-                    'Closet'),
-                // "Dress Me" — the AI stylist tab. Magic-wand icon so it
-                // reads as transformative/styling without clashing with
-                // the auto_awesome sparkle used by VASTRAHUB AI.
-                _navItem(3, Icons.auto_fix_high_outlined,
-                    Icons.auto_fix_high, 'Dress Me'),
+                // Centre AI launcher — visually distinct so users see
+                // it as the single entry-point to all the AI features.
+                // Tapping doesn't switch tabs; it pops the sheet.
+                _AiLauncherButton(
+                  onTap: () => showAiToolsSheet(context),
+                ),
+                _navItem(1, Icons.checkroom_outlined,
+                    Icons.checkroom_rounded, 'Closet'),
               ],
             ),
           ),
@@ -86,10 +84,7 @@ class _MainShellState extends State<MainShell> {
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        // Horizontal padding shrunk to 8 (from 14) so 5 tabs still fit
-        // comfortably on narrow devices — the icon + label column is
-        // what centres each hit target.
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: isActive ? AppColors.primary.withAlpha(15) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
@@ -112,6 +107,64 @@ class _MainShellState extends State<MainShell> {
               ),
               overflow: TextOverflow.visible,
               maxLines: 1,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Centre launcher in the bottom nav. Hamburger-style 3-line icon
+/// over a brand-coloured pill so it reads as "more options here"
+/// rather than as a tab destination. Sized slightly larger than the
+/// adjacent nav items so it feels like a primary action.
+class _AiLauncherButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _AiLauncherButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withAlpha(60),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: const Icon(
+                // Three horizontal lines — reads as "menu of AI tools".
+                Icons.menu_rounded,
+                size: 24,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'AI',
+              style: GoogleFonts.manrope(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+                letterSpacing: 0.5,
+              ),
             ),
           ],
         ),
