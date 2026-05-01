@@ -161,21 +161,48 @@ class _WardrobeCalendarScreenState extends State<WardrobeCalendarScreen> {
                           ],
                         ),
                       ),
-                      TextButton.icon(
-                        onPressed: () => context.push('/wardrobe'),
-                        icon: const Icon(
-                          Icons.checkroom_rounded,
-                          size: 16,
-                          color: AppColors.primary,
-                        ),
-                        label: Text(
-                          'My Closet',
-                          style: GoogleFonts.manrope(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
+                      // Two top-right shortcuts: digital closet
+                      // (existing) and My Network (Friend Closet
+                      // social entry point). Stacked vertically so
+                      // the iPhone-Mini class doesn't push the
+                      // calendar off-screen on narrow devices.
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TextButton.icon(
+                            onPressed: () => context.push('/wardrobe'),
+                            icon: const Icon(
+                              Icons.checkroom_rounded,
+                              size: 16,
+                              color: AppColors.primary,
+                            ),
+                            label: Text(
+                              'My Closet',
+                              style: GoogleFonts.manrope(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
                           ),
-                        ),
+                          TextButton.icon(
+                            onPressed: () => context.push('/social'),
+                            icon: const Icon(
+                              Icons.groups_rounded,
+                              size: 16,
+                              color: AppColors.primary,
+                            ),
+                            label: Text(
+                              'My Network',
+                              style: GoogleFonts.manrope(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
