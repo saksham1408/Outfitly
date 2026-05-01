@@ -5,7 +5,6 @@ import '../../core/theme/theme.dart';
 import '../catalog/presentation/home/home_screen.dart';
 import '../digital_wardrobe/presentation/daily_stylist_screen.dart';
 import '../style_assistant/presentation/style_assistant_tab.dart';
-import '../tracking/screens/orders_screen.dart';
 import '../wardrobe_calendar/presentation/wardrobe_calendar_screen.dart';
 
 class MainShell extends StatefulWidget {
@@ -20,18 +19,16 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   late int _currentIndex;
 
-  // Five root tabs. "Dress Me" sits between Closet and Orders so the
-  // journey reads naturally: browse → chat AI → manage clothes → get
-  // styled → track orders. The VASTRAHUB AI tab opens the
-  // StyleAssistantTab gate, which forces a one-time Style Quiz on
-  // first visit and then drops the user straight into the Gemini
-  // chat on every subsequent open.
+  // Four root tabs. The journey now reads: browse → chat AI →
+  // manage clothes → get styled. Orders moved out of the bottom
+  // nav and lives behind the Profile screen's "Order History" tile
+  // (route /orders) — keeping the bottom nav focused on the
+  // commerce + creation loop.
   final _screens = const [
     HomeScreen(),
     StyleAssistantTab(),
     WardrobeCalendarScreen(),
     DailyStylistScreen(),
-    OrdersScreen(),
   ];
 
   @override
@@ -74,8 +71,6 @@ class _MainShellState extends State<MainShell> {
                 // the auto_awesome sparkle used by VASTRAHUB AI.
                 _navItem(3, Icons.auto_fix_high_outlined,
                     Icons.auto_fix_high, 'Dress Me'),
-                _navItem(4, Icons.local_shipping_outlined,
-                    Icons.local_shipping_rounded, 'Orders'),
               ],
             ),
           ),
