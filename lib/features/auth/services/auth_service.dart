@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/locale/money.dart';
 import '../../../core/network/supabase_client.dart';
 import '../../../core/push/device_token_service.dart';
 
@@ -166,6 +167,17 @@ class AuthService {
     // once the auth uid flips to null, the RLS policy on
     // device_tokens.delete would reject the request.
     await _deviceTokens.unregisterCurrent();
+
+    // Clear the currency override so the next user logging in on this
+    // device doesn't inherit the previous user's country. Without
+    // this, a French user who signs out and hands the phone to an
+    // Indian user would still see € prices until the Indian's profile
+    // country is read from the DB — which fails silently if the
+    // migration hasn't run. Clearing here is the belt-and-braces fix:
+    // money falls back to device locale until login applies the new
+    // user's saved choice.
+    await Money.instance.setOverrideCountry(null);
+
     await _client.auth.signOut();
   }
 }
