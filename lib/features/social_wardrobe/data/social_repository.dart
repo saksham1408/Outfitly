@@ -101,6 +101,46 @@ class SocialRepository {
     await _client.from('friend_connections').delete().eq('id', connectionId);
   }
 
+  /// All friend rows where I'm the *requester* and status is still
+  /// pending — drives the "you sent X requests, waiting" strip on
+  /// the dashboard so the sender can see (and withdraw) their open
+  /// invites without checking the DB.
+  Future<List<FriendConnection>> fetchOutgoingFriendRequests() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return const [];
+
+    try {
+      final rawRows = await _client
+          .from('friend_connections')
+          .select(
+            'id, requester_id, addressee_id, status, created_at, updated_at',
+          )
+          .eq('requester_id', user.id)
+          .eq('status', 'pending')
+          .order('created_at', ascending: false);
+
+      final rows = (rawRows as List).cast<Map<String, dynamic>>();
+      if (rows.isEmpty) return const [];
+
+      final profilesById = await _fetchProfilesByIds(
+        rows.map((r) => r['addressee_id'] as String).toSet(),
+      );
+
+      return rows
+          .map((raw) => FriendConnection.fromRow({
+                ...raw,
+                if (profilesById[raw['addressee_id']] != null)
+                  'addressee': profilesById[raw['addressee_id']],
+              }))
+          .toList(growable: false);
+    } catch (e, st) {
+      debugPrint(
+        'SocialRepository.fetchOutgoingFriendRequests failed — $e\n$st',
+      );
+      return const [];
+    }
+  }
+
   /// All friend rows where I'm the addressee and status is pending —
   /// drives the "incoming friend request" badge / row in the
   /// dashboard.

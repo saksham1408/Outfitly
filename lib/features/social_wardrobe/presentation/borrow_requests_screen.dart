@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/network/supabase_client.dart';
 import '../../../core/theme/theme.dart';
 import '../data/social_repository.dart';
 import '../models/borrow_request.dart';
@@ -113,6 +117,9 @@ class _IncomingTabState extends State<_IncomingTab>
   List<BorrowRequest> _rows = const [];
   bool _loading = true;
 
+  RealtimeChannel? _liveChannel;
+  Timer? _debounce;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -120,6 +127,34 @@ class _IncomingTabState extends State<_IncomingTab>
   void initState() {
     super.initState();
     _load();
+    _subscribeRealtime();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    final ch = _liveChannel;
+    if (ch != null) AppSupabase.client.removeChannel(ch);
+    super.dispose();
+  }
+
+  void _subscribeRealtime() {
+    final ch = AppSupabase.client.channel(
+      'borrow_incoming_${DateTime.now().millisecondsSinceEpoch}',
+    );
+    ch.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'borrow_requests',
+      callback: (_) {
+        _debounce?.cancel();
+        _debounce = Timer(const Duration(milliseconds: 400), () {
+          if (mounted) _load();
+        });
+      },
+    );
+    ch.subscribe();
+    _liveChannel = ch;
   }
 
   Future<void> _load() async {
@@ -154,6 +189,28 @@ class _IncomingTabState extends State<_IncomingTab>
     }
   }
 
+  Future<void> _markReturned(BorrowRequest row) async {
+    try {
+      await _social.updateBorrowStatus(
+        row.id,
+        BorrowStatus.returned,
+        expecting: BorrowStatus.approved,
+      );
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.error,
+          content: Text(
+            'Couldn\'t mark returned: $e',
+            style: GoogleFonts.manrope(color: Colors.white),
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -171,6 +228,7 @@ class _IncomingTabState extends State<_IncomingTab>
                   itemCount: _rows.length,
                   itemBuilder: (context, i) => _RequestCard(
                     row: _rows[i],
+                    onMarkReturned: _markReturned,
                     perspective: _Perspective.incoming,
                     onRespond: _respond,
                   ),
@@ -193,6 +251,9 @@ class _OutgoingTabState extends State<_OutgoingTab>
   List<BorrowRequest> _rows = const [];
   bool _loading = true;
 
+  RealtimeChannel? _liveChannel;
+  Timer? _debounce;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -200,6 +261,34 @@ class _OutgoingTabState extends State<_OutgoingTab>
   void initState() {
     super.initState();
     _load();
+    _subscribeRealtime();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    final ch = _liveChannel;
+    if (ch != null) AppSupabase.client.removeChannel(ch);
+    super.dispose();
+  }
+
+  void _subscribeRealtime() {
+    final ch = AppSupabase.client.channel(
+      'borrow_outgoing_${DateTime.now().millisecondsSinceEpoch}',
+    );
+    ch.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'borrow_requests',
+      callback: (_) {
+        _debounce?.cancel();
+        _debounce = Timer(const Duration(milliseconds: 400), () {
+          if (mounted) _load();
+        });
+      },
+    );
+    ch.subscribe();
+    _liveChannel = ch;
   }
 
   Future<void> _load() async {
@@ -234,6 +323,28 @@ class _OutgoingTabState extends State<_OutgoingTab>
     }
   }
 
+  Future<void> _markReturned(BorrowRequest row) async {
+    try {
+      await _social.updateBorrowStatus(
+        row.id,
+        BorrowStatus.returned,
+        expecting: BorrowStatus.approved,
+      );
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.error,
+          content: Text(
+            'Couldn\'t mark returned: $e',
+            style: GoogleFonts.manrope(color: Colors.white),
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -253,6 +364,7 @@ class _OutgoingTabState extends State<_OutgoingTab>
                     row: _rows[i],
                     perspective: _Perspective.outgoing,
                     onCancel: _cancel,
+                    onMarkReturned: _markReturned,
                   ),
                 ),
     );
@@ -267,6 +379,7 @@ class _RequestCard extends StatelessWidget {
   final BorrowRequest row;
   final _Perspective perspective;
   final void Function(BorrowRequest, bool approve)? onRespond;
+  final void Function(BorrowRequest)? onMarkReturned;
   final void Function(BorrowRequest)? onCancel;
 
   const _RequestCard({
@@ -274,6 +387,7 @@ class _RequestCard extends StatelessWidget {
     required this.perspective,
     this.onRespond,
     this.onCancel,
+    this.onMarkReturned,
   });
 
   @override
@@ -465,6 +579,36 @@ class _RequestCard extends StatelessWidget {
                   ),
                 ),
               ),
+          ],
+
+          // Mark Returned — only on approved rows. Either party can
+          // tap; whichever side actually has the garment in hand
+          // closes the loop. Once returned, the row becomes read-only
+          // history.
+          if (row.status == BorrowStatus.approved &&
+              onMarkReturned != null) ...[
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => onMarkReturned!.call(row),
+                icon: const Icon(
+                  Icons.assignment_turned_in_outlined,
+                  size: 16,
+                ),
+                label: Text(
+                  'MARK RETURNED',
+                  style: GoogleFonts.manrope(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.3,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                ),
+              ),
+            ),
           ],
         ],
       ),

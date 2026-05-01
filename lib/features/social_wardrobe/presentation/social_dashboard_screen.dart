@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/network/supabase_client.dart';
 import '../../../core/theme/theme.dart';
@@ -37,34 +40,87 @@ class _SocialDashboardScreenState extends State<SocialDashboardScreen> {
 
   List<FriendConnection> _friends = const [];
   List<FriendConnection> _incoming = const [];
+  List<FriendConnection> _outgoing = const [];
   List<ActivityEntry> _activity = const [];
   bool _loading = true;
+
+  /// Realtime channel — fires whenever a row in friend_connections
+  /// or borrow_requests changes. We don't read the payload; any
+  /// change just triggers a fresh `_load()` so all four sections
+  /// update together. Cheaper than diff-merging four list types.
+  RealtimeChannel? _liveChannel;
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _subscribeRealtime();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    final ch = _liveChannel;
+    if (ch != null) {
+      AppSupabase.client.removeChannel(ch);
+    }
+    super.dispose();
+  }
+
+  void _subscribeRealtime() {
+    final ch = AppSupabase.client
+        .channel('social_dashboard_${DateTime.now().millisecondsSinceEpoch}');
+
+    // Two table subscriptions — both fire `_scheduleRefresh` which
+    // debounces a `_load()` call so a burst of writes (e.g. a friend
+    // accepts AND a borrow request lands in the same second) only
+    // triggers one refetch.
+    ch.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'friend_connections',
+      callback: (_) => _scheduleRefresh(),
+    );
+    ch.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'borrow_requests',
+      callback: (_) => _scheduleRefresh(),
+    );
+
+    ch.subscribe();
+    _liveChannel = ch;
+  }
+
+  void _scheduleRefresh() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      if (mounted) _load();
+    });
   }
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    // Three parallel fetches: accepted friends, pending invites
-    // addressed to me, recent activity. Friends list lives on
-    // WardrobeRepository per the spec ("Update the
-    // WardrobeRepository with methods to: fetchFriends() ...");
-    // SocialRepository covers the request lifecycle.
+    // Four parallel fetches: accepted friends, pending invites
+    // addressed to me (incoming), pending invites *I* sent
+    // (outgoing — so I can see and withdraw what I've already
+    // asked), and recent activity.
     final friendsFuture = WardrobeRepository.instance.fetchFriends();
     final incomingFuture = _social.fetchIncomingFriendRequests();
+    final outgoingFuture = _social.fetchOutgoingFriendRequests();
     final activityFuture = _social.fetchRecentActivity();
 
     final friends = await friendsFuture;
     final incoming = await incomingFuture;
+    final outgoing = await outgoingFuture;
     final activity = await activityFuture;
 
     if (!mounted) return;
     setState(() {
       _friends = friends;
       _incoming = incoming;
+      _outgoing = outgoing;
       _activity = activity;
       _loading = false;
     });
@@ -99,6 +155,28 @@ class _SocialDashboardScreenState extends State<SocialDashboardScreen> {
           backgroundColor: AppColors.error,
           content: Text(
             'Couldn\'t respond: $e',
+            style: GoogleFonts.manrope(color: Colors.white),
+          ),
+        ),
+      );
+    }
+  }
+
+  /// Withdraw a friend request I sent. Reuses removeConnection on
+  /// SocialRepository — RLS allows either party to DELETE so the
+  /// requester can pull their own invite.
+  Future<void> _withdraw(FriendConnection invite) async {
+    try {
+      await _social.removeConnection(invite.id);
+      if (!mounted) return;
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.error,
+          content: Text(
+            'Couldn\'t withdraw: $e',
             style: GoogleFonts.manrope(color: Colors.white),
           ),
         ),
@@ -168,6 +246,11 @@ class _SocialDashboardScreenState extends State<SocialDashboardScreen> {
                       requests: _incoming,
                       selfId: selfId,
                       onRespond: _respond,
+                    ),
+                  if (_outgoing.isNotEmpty)
+                    _OutgoingRequestsSection(
+                      requests: _outgoing,
+                      onWithdraw: _withdraw,
                     ),
                   _FriendsRow(friends: _friends, selfId: selfId),
                   const SizedBox(height: 24),
@@ -301,6 +384,113 @@ class _IncomingRequestsSection extends StatelessWidget {
             invite: invite,
             selfId: selfId,
             onRespond: onRespond,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Sister section to [_IncomingRequestsSection] — surfaces friend
+/// requests *I* sent that haven't been answered yet, with a single
+/// "Withdraw" affordance per row. Renders below the incoming strip
+/// so the addressee's pending invites stay the visually-loudest
+/// section.
+class _OutgoingRequestsSection extends StatelessWidget {
+  final List<FriendConnection> requests;
+  final void Function(FriendConnection) onWithdraw;
+
+  const _OutgoingRequestsSection({
+    required this.requests,
+    required this.onWithdraw,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withAlpha(10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withAlpha(30)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${requests.length} REQUEST${requests.length == 1 ? "" : "S"} '
+            'YOU SENT',
+            style: GoogleFonts.manrope(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.5,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          for (final invite in requests)
+            _OutgoingInviteRow(invite: invite, onWithdraw: onWithdraw),
+        ],
+      ),
+    );
+  }
+}
+
+class _OutgoingInviteRow extends StatelessWidget {
+  final FriendConnection invite;
+  final void Function(FriendConnection) onWithdraw;
+
+  const _OutgoingInviteRow({
+    required this.invite,
+    required this.onWithdraw,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = invite.otherProfile;
+    if (profile == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          _Avatar(profile: profile, size: 36),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  profile.fullName,
+                  style: GoogleFonts.manrope(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
+                Text(
+                  'Waiting for them to accept',
+                  style: GoogleFonts.manrope(
+                    fontSize: 11,
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: () => onWithdraw(invite),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.error,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+            child: Text(
+              'Withdraw',
+              style: GoogleFonts.manrope(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
