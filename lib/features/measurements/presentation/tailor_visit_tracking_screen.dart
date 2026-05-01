@@ -179,6 +179,13 @@ class _StatusHero extends StatelessWidget {
           'We\'re pinging every Partner in your area. You\'ll see their '
               'name here the moment someone picks up.',
         );
+      case TailorVisitStatus.pendingTailorApproval:
+        return (
+          'Waiting on $name to confirm…',
+          'You picked them from the marketplace — they\'ll get a ping '
+              'and have a few minutes to accept or pass. Status updates '
+              'land here automatically.',
+        );
       case TailorVisitStatus.accepted:
         return (
           '$name has accepted.',

@@ -100,12 +100,17 @@ class _BookTailorScreenState extends State<BookTailorScreen> {
             .trimRight();
 
     if (payload != null) {
-      // Existing order-checkout integration: stuff the tailor details
-      // into the payload and let the cart screen pick up from here.
-      // The cart's `_placeOrder` reads `tailorScheduledTime` (set just
-      // below) to dispatch a `tailor_appointments` row to the Partner
-      // radar — that's what makes a checkout-with-tailor-visit show up
-      // on online tailors' phones in real time.
+      // Marketplace flow: stuff the booking-form values into the
+      // payload, then route to the tailor selection screen instead
+      // of jumping straight to /cart. The selection screen will
+      // assign `tailorId` + `tailorName` and only then push the
+      // payload through to /cart for the final review step.
+      //
+      // The cart's existing `_placeOrder` reads `tailorScheduledTime`
+      // (set just below) to INSERT the `tailor_appointments` row —
+      // it now also picks up the chosen `tailorId` from the payload
+      // and bakes it into the row at creation time, so the chosen
+      // tailor (and only that tailor) sees the new request.
       payload.measurementMethod = 'tailor';
       payload.tailorAddress =
           '${_addressController.text.trim()}, ${_landmarkController.text.trim()}'.trimRight();
@@ -114,7 +119,7 @@ class _BookTailorScreenState extends State<BookTailorScreen> {
       payload.tailorTimeSlot = _selectedSlot;
       payload.tailorScheduledTime = _composeScheduledTime();
 
-      context.push('/cart', extra: payload);
+      context.push('/measurements/select-tailor', extra: payload);
       return;
     }
 

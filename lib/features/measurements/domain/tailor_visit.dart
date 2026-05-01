@@ -9,19 +9,24 @@
 /// in the real name + years-of-experience the moment one lands.
 library;
 
-/// The six states a visit row can be in — mirrors the CHECK
-/// constraint on `tailor_appointments.status` (see migration 026).
+/// The states a visit row can be in — mirrors the CHECK constraint
+/// on `tailor_appointments.status` (migration 023 → 026 → 036).
 ///
-/// Happy-path progression:
+/// Two booking modes share this enum:
 ///
-///   pending → accepted → enRoute → arrived → completed
-///                                       ↘ cancelled
+///   * **Auto-dispatch (legacy)** — kept for backward compatibility:
+///     pending → accepted → enRoute → arrived → completed
+///   * **User-selected marketplace** — a specific tailor is chosen
+///     before the row is even inserted:
+///     pendingTailorApproval → accepted → enRoute → arrived → completed
 ///
-/// The Partner app advances the row one step at a time from the
-/// active job screen; this surface renders the current step + the
-/// future steps as a vertical timeline.
+/// Either branch can short-circuit to `cancelled`. The Partner app
+/// surfaces only `pending` rows to the broadcast radar; rows that
+/// land in `pendingTailorApproval` go straight to the chosen
+/// tailor's inbox via the per-tailor RLS scope added in 036.
 enum TailorVisitStatus {
   pending,
+  pendingTailorApproval,
   accepted,
   enRoute,
   arrived,
@@ -32,6 +37,8 @@ enum TailorVisitStatus {
     switch (raw) {
       case 'pending':
         return TailorVisitStatus.pending;
+      case 'pending_tailor_approval':
+        return TailorVisitStatus.pendingTailorApproval;
       case 'accepted':
         return TailorVisitStatus.accepted;
       case 'en_route':
@@ -51,13 +58,31 @@ enum TailorVisitStatus {
     }
   }
 
+  /// Wire string used in INSERT / UPDATE payloads.
+  String get wire {
+    switch (this) {
+      case TailorVisitStatus.pendingTailorApproval:
+        return 'pending_tailor_approval';
+      case TailorVisitStatus.enRoute:
+        return 'en_route';
+      case TailorVisitStatus.pending:
+      case TailorVisitStatus.accepted:
+      case TailorVisitStatus.arrived:
+      case TailorVisitStatus.completed:
+      case TailorVisitStatus.cancelled:
+        return name;
+    }
+  }
+
   /// Human-facing label shown on the status pill.
   String get label {
     switch (this) {
       case TailorVisitStatus.pending:
         return 'Finding a tailor';
+      case TailorVisitStatus.pendingTailorApproval:
+        return 'Awaiting tailor';
       case TailorVisitStatus.accepted:
-        return 'Dispatched';
+        return 'Confirmed';
       case TailorVisitStatus.enRoute:
         return 'On the way';
       case TailorVisitStatus.arrived:
@@ -71,11 +96,14 @@ enum TailorVisitStatus {
 
   /// Position along the happy-path progression — used by the
   /// timeline to decide which steps render as filled (≤ current)
-  /// vs. ghosted (> current). `cancelled` returns -1 so the
-  /// timeline collapses cleanly.
+  /// vs. ghosted (> current). Both pending variants share index 0
+  /// because they're functionally the same step from the customer's
+  /// perspective ("waiting for a tailor"). `cancelled` returns -1
+  /// so the timeline collapses cleanly.
   int get progressIndex {
     switch (this) {
       case TailorVisitStatus.pending:
+      case TailorVisitStatus.pendingTailorApproval:
         return 0;
       case TailorVisitStatus.accepted:
         return 1;
@@ -91,18 +119,60 @@ enum TailorVisitStatus {
   }
 }
 
-/// Partner-facing profile fields the customer is allowed to see once
-/// a tailor has accepted their request (guarded by RLS migration 025).
+/// Public-facing tailor profile — the columns the customer marketplace
+/// + accepted-tailor cards are allowed to read.
+///
+/// Migration 024 created the base row (id / full_name / phone /
+/// experience_years); migration 028 added the marketplace credibility
+/// fields (rating, total_reviews, specialties, is_verified,
+/// total_earnings); migration 025 unlocked the customer-side SELECT
+/// once an appointment exists; migration 036 adds the broader
+/// "browse" SELECT that powers the selection screen before any
+/// appointment exists.
+///
+/// We deliberately don't model `phone` or `total_earnings` here —
+/// those stay on the server-only side of the wire. The client query
+/// only requests the safe columns listed below.
 class TailorProfile {
   const TailorProfile({
     required this.id,
     required this.fullName,
     required this.experienceYears,
+    this.rating = 0,
+    this.totalReviews = 0,
+    this.specialties = const <String>[],
+    this.isVerified = false,
   });
 
   final String id;
   final String fullName;
   final int experienceYears;
+
+  /// 0.00 → 5.00. Stored as numeric(3,2) server-side; arrives as
+  /// `num` over the wire and we coerce defensively.
+  final double rating;
+
+  /// Number of customer reviews this tailor has accumulated. Doubles
+  /// as a "jobs completed" proxy on the marketplace card — every
+  /// completed visit is reviewable, so the count tracks lifetime
+  /// throughput closely enough for an MVP.
+  final int totalReviews;
+
+  /// Free-form labels the tailor self-tags — "Suits", "Sherwanis",
+  /// "Bridal", etc. Drives the chips row on the selection card.
+  final List<String> specialties;
+
+  /// Identity-verified by the Outfitly atelier. Renders as a small
+  /// blue check next to the name on the card.
+  final bool isVerified;
+
+  /// First letter of the display name, uppercased — fallback avatar
+  /// glyph when no portrait image exists. tailor_profiles doesn't
+  /// have an `avatar_url` column today; we'll render the initial
+  /// inside a tinted circle, matching the Loop / Friend Profile
+  /// pattern.
+  String get initial =>
+      fullName.isEmpty ? '?' : fullName.substring(0, 1).toUpperCase();
 
   factory TailorProfile.fromMap(Map<String, dynamic> map) {
     return TailorProfile(
@@ -111,7 +181,12 @@ class TailorProfile {
       // Postgres `smallint` comes through as `int` under the current
       // supabase-flutter build, but coerce defensively in case a
       // future driver returns `num`.
-      experienceYears: (map['experience_years'] as num).toInt(),
+      experienceYears: (map['experience_years'] as num?)?.toInt() ?? 0,
+      rating: (map['rating'] as num?)?.toDouble() ?? 0,
+      totalReviews: (map['total_reviews'] as num?)?.toInt() ?? 0,
+      specialties: (map['specialties'] as List?)?.cast<String>() ??
+          const <String>[],
+      isVerified: map['is_verified'] as bool? ?? false,
     );
   }
 }

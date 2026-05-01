@@ -525,12 +525,15 @@ class _TailorVisitCard extends StatelessWidget {
     );
   }
 
-  /// Five-state colour map for the status pill. Mirrors the status
-  /// hero copy on the detail screen so the list-row pill and the
-  /// detail-page pill always agree visually.
+  /// Status pill colour map. Mirrors the status hero copy on the
+  /// detail screen so the list-row pill and the detail-page pill
+  /// always agree visually. Both pending variants share the primary
+  /// tone — they're functionally the same step from the customer's
+  /// view ("waiting").
   Color _pillColor(TailorVisitStatus status) {
     switch (status) {
       case TailorVisitStatus.pending:
+      case TailorVisitStatus.pendingTailorApproval:
         return AppColors.primary;
       case TailorVisitStatus.accepted:
       case TailorVisitStatus.enRoute:

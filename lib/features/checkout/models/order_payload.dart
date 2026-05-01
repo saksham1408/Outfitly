@@ -40,6 +40,22 @@ class OrderPayload {
   /// atelier dashboard reads.
   DateTime? tailorScheduledTime;
 
+  /// auth.users.id of the tailor the customer hand-picked from the
+  /// marketplace selection screen. When present, the cart's tailor
+  /// dispatch INSERTs the `tailor_appointments` row with this
+  /// tailor_id baked in + status='pending_tailor_approval' instead
+  /// of the legacy broadcast `pending`. Null on legacy paths (no
+  /// selection screen) — we keep the auto-dispatch behaviour for
+  /// backward compatibility.
+  String? tailorId;
+
+  /// Display-name snapshot of the chosen tailor. Used by the cart
+  /// summary row ("Hired tailor: Aarav Mehta") so the customer sees
+  /// a confirmation of who they picked before tapping Place Order.
+  /// Persisted into `orders.design_choices.tailor_name` for the
+  /// atelier audit trail.
+  String? tailorName;
+
   /// Public URL of a user-uploaded reference image. Populated from the
   /// Design Studio when a customer attaches a custom design to an
   /// Embroidery-subcategory product. Surfaces in Directus admin so the
@@ -93,6 +109,8 @@ class OrderPayload {
           if (tailorPincode != null) 'tailor_pincode': tailorPincode,
           if (tailorDate != null) 'tailor_date': tailorDate,
           if (tailorTimeSlot != null) 'tailor_time_slot': tailorTimeSlot,
+          if (tailorId != null) 'tailor_id': tailorId,
+          if (tailorName != null) 'tailor_name': tailorName,
           if (customEmbroideryUrl != null)
             'custom_embroidery_url': customEmbroideryUrl,
           // AI fields — nested under `ai_recreated` so the atelier
@@ -122,6 +140,8 @@ class OrderPayload {
     String? tailorDate,
     String? tailorTimeSlot,
     DateTime? tailorScheduledTime,
+    String? tailorId,
+    String? tailorName,
   }) {
     final p = OrderPayload(
       productName: productName,
@@ -142,6 +162,8 @@ class OrderPayload {
     p.tailorDate = tailorDate;
     p.tailorTimeSlot = tailorTimeSlot;
     p.tailorScheduledTime = tailorScheduledTime;
+    p.tailorId = tailorId;
+    p.tailorName = tailorName;
     return p;
   }
 
