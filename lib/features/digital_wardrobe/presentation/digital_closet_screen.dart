@@ -66,10 +66,10 @@ class _DigitalClosetScreenState extends State<DigitalClosetScreen> {
         ),
         centerTitle: false,
         actions: [
-          // "My Network" → the social dashboard. Sits to the left of
-          // Dress Me because the social loop is the more recent
-          // (and viral) flow — we want the icon visible without the
-          // user having to discover it through the menu.
+          // "Loop" → the social dashboard (Friend Closet). Sits to
+          // the left of Dress Me because the social loop is the more
+          // recent (and viral) flow — we want the icon visible
+          // without the user having to discover it via bottom nav.
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: Center(
@@ -538,7 +538,7 @@ class _NetworkPill extends StatelessWidget {
               const Icon(Icons.groups_rounded, size: 14, color: Colors.white),
               const SizedBox(width: 6),
               Text(
-                'My Network',
+                'Loop',
                 style: GoogleFonts.manrope(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w700,

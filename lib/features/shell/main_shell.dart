@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/theme.dart';
@@ -69,6 +70,14 @@ class _MainShellState extends State<MainShell> {
                 ),
                 _navItem(1, Icons.checkroom_outlined,
                     Icons.checkroom_rounded, 'Closet'),
+                // Loop — the social Friend Closet entry. Doesn't have
+                // a screen instance in `_screens` because the dashboard
+                // lives on its own pushed route (so it gets a back
+                // arrow); we route via context.push('/social') and
+                // never set _currentIndex for it.
+                _LoopNavButton(
+                  onTap: () => context.push('/social'),
+                ),
               ],
             ),
           ),
@@ -106,6 +115,51 @@ class _MainShellState extends State<MainShell> {
                 color: isActive ? AppColors.primary : AppColors.textTertiary,
               ),
               overflow: TextOverflow.visible,
+              maxLines: 1,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// "Loop" nav button — same shape as a regular tab item but routes
+/// via `context.push('/social')` instead of switching the IndexedStack
+/// index. The Loop dashboard then renders with a real back arrow so
+/// users can return without an extra mental model ("which tab am I
+/// in?"). The button never appears as `isActive` on the bottom nav
+/// because it's a route, not a tab.
+class _LoopNavButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _LoopNavButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              // Refresh-arrow loop — reads as "going around" /
+              // "circulating" which is exactly what the social
+              // borrow flow does.
+              Icons.loop_rounded,
+              size: 22,
+              color: AppColors.textTertiary,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Loop',
+              style: GoogleFonts.manrope(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textTertiary,
+              ),
               maxLines: 1,
             ),
           ],

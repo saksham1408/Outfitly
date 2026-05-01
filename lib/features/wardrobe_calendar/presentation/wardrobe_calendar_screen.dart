@@ -162,10 +162,10 @@ class _WardrobeCalendarScreenState extends State<WardrobeCalendarScreen> {
                         ),
                       ),
                       // Two top-right shortcuts: digital closet
-                      // (existing) and My Network (Friend Closet
-                      // social entry point). Stacked vertically so
-                      // the iPhone-Mini class doesn't push the
-                      // calendar off-screen on narrow devices.
+                      // (existing) and Loop (Friend Closet social
+                      // entry point). Stacked vertically so the
+                      // iPhone-Mini class doesn't push the calendar
+                      // off-screen on narrow devices.
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         mainAxisSize: MainAxisSize.min,
@@ -194,7 +194,7 @@ class _WardrobeCalendarScreenState extends State<WardrobeCalendarScreen> {
                               color: AppColors.primary,
                             ),
                             label: Text(
-                              'My Network',
+                              'Loop',
                               style: GoogleFonts.manrope(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,

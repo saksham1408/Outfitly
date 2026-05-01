@@ -405,8 +405,8 @@ abstract final class AppRouter {
         builder: (context, state) => const StyleAnchorScreen(),
       ),
 
-      // ── Friend Closet Sharing ──
-      // The "My Network" social entry point. Users discover and add
+      // ── Loop (Friend Closet Sharing) ──
+      // The "Loop" social entry point. Users discover and add
       // friends here, see a horizontal row of accepted friends'
       // avatars, and tap into the friend-closet view at the route
       // below. Activity feed lives on the dashboard too.
