@@ -40,16 +40,14 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       // Apply the country saved on the user's profile to Money before
-      // navigating off the auth flow. This means a user who registered
-      // as France-based on phone A and is now logging in on phone B
-      // (which might be in a different region) sees the correct
-      // currency immediately, no flicker. If the column doesn't exist
-      // yet (pre-migration legacy), we just keep whatever Money already
-      // resolved during boot.
+      // navigating off the auth flow. We pass the value through
+      // unconditionally — `null` is meaningful here, it tells Money to
+      // *clear* any leftover override (e.g. from a previous user's
+      // session on the same device) and fall back to device locale.
+      // Without this, an Indian user logging in on a phone that last
+      // hosted a French registration would keep seeing € prices.
       final savedCountry = await _authService.fetchSavedCountry();
-      if (savedCountry != null) {
-        await Money.instance.setOverrideCountry(savedCountry);
-      }
+      await Money.instance.setOverrideCountry(savedCountry);
 
       if (!mounted) return;
       final onboarded = await _authService.isOnboardingComplete();
