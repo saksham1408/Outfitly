@@ -64,11 +64,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (picked == null || picked == current) return;
     if (!mounted) return;
 
-    // Optimistically apply locally so the catalog repaints in the new
-    // currency immediately. If the DB update fails, we surface a
-    // snackbar but the local override sticks — user can retry from
-    // the same screen, currency stays usable in the meantime.
+    // Apply locally first so the catalog repaints in the new currency
+    // immediately — even if the DB update fails, the user still gets
+    // the right currency on this device.
     await Money.instance.setOverrideCountry(picked);
+
+    // Optimistically reflect the new country in the menu subtitle.
+    // We update _profile regardless of whether the DB update succeeds
+    // because the local override is the actual source of truth for
+    // what the user sees; the DB row is just for cross-device sync.
+    setState(() {
+      _profile = {...?_profile, 'country': picked};
+    });
+
+    String message =
+        'Country updated to ${dialInfoForCountry(picked).name}';
+    Color? bg;
 
     try {
       final user = _authService.currentUser;
@@ -77,29 +88,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
           'country': picked,
         }).eq('id', user.id);
       }
-
-      if (!mounted) return;
-      setState(() {
-        _profile = {...?_profile, 'country': picked};
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Country updated to ${dialInfoForCountry(picked).name}',
-          ),
-          duration: const Duration(seconds: 2),
-        ),
-      );
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Couldn\'t save to your profile: $e'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      final raw = e.toString();
+      // Detect the specific "country column missing" case — this
+      // happens when migration 030 hasn't been applied yet. We don't
+      // treat it as a hard error: the local override still holds, the
+      // catalog still repaints; the user just won't sync this choice
+      // to other devices until the migration runs.
+      final isMigrationMissing = raw.contains('PGRST204') ||
+          (raw.contains("'country'") && raw.contains('schema cache'));
+      if (isMigrationMissing) {
+        message =
+            'Currency switched on this device. Apply migration 030 to sync your country across devices.';
+        bg = AppColors.primary;
+      } else {
+        message = 'Saved locally. Couldn\'t sync to your profile: $e';
+        bg = AppColors.error;
+      }
     }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: bg,
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   @override
