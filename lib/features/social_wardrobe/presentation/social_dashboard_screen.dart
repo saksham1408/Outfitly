@@ -12,8 +12,12 @@ import '../data/social_repository.dart';
 import '../models/friend_connection.dart';
 import 'add_friend_sheet.dart';
 
-/// "My Network" — the social entry point for the Friend Closet
-/// feature.
+/// "Loop" — the social entry point for the Friend Closet feature.
+/// Renamed from the original "My Network" because Loop captures
+/// both the social aspect (you're in the loop with your friends)
+/// and the borrow lifecycle (clothes loop through the network and
+/// come back). Single-word matches the rhythm of the other nav
+/// labels and reads as a destination, not a section header.
 ///
 /// Layout:
 ///   * Top bar with title + "Add Friend" icon (opens [AddFriendSheet]).
@@ -202,7 +206,7 @@ class _SocialDashboardScreenState extends State<SocialDashboardScreen> {
           onPressed: () => context.pop(),
         ),
         title: Text(
-          'My Network',
+          'Loop',
           style: GoogleFonts.manrope(
             fontSize: 17,
             fontWeight: FontWeight.w700,
