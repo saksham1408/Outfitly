@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -9,13 +10,15 @@ import '../network/supabase_client.dart';
 /// `public.device_tokens` so the server can fan out pushes to every
 /// device the signed-in user has the customer app installed on.
 ///
-/// This service intentionally does NOT depend on `firebase_messaging`
-/// yet — the FCM / APNs integration is a follow-up that adds the
-/// native platform plumbing. When that lands, the only change here is
-/// to replace [_fetchPlatformToken] with a call into
-/// `FirebaseMessaging.instance.getToken()` (plus the APNs permission
-/// prompt on iOS). Every other seam — register / unregister / the
-/// Supabase UPSERT — is already in place.
+/// As of the Marketing & Promotions rollout this now pulls real FCM
+/// tokens via `FirebaseMessaging.instance.getToken()`. If Firebase
+/// isn't configured for the running build (no google-services.json
+/// / GoogleService-Info.plist), the call throws and we log + skip
+/// — `registerCurrent` still completes cleanly so auth flows aren't
+/// blocked. The permission prompt itself happens earlier, inside
+/// [PushNotificationService.initialize] (called from main.dart),
+/// so by the time we reach here the OS has already decided whether
+/// this device may receive pushes.
 ///
 /// Usage:
 ///
@@ -120,14 +123,30 @@ class DeviceTokenService {
     return null;
   }
 
-  /// Scaffold stub — replaced by the real FCM / APNs fetch once
-  /// the native platform config lands (GoogleService-Info.plist /
-  /// google-services.json + firebase_messaging dependency). Returns
-  /// null today so callers no-op cleanly.
+  /// Pull the FCM token for this device. Permissions are already
+  /// requested by [PushNotificationService.initialize]; here we
+  /// just ask FCM for the registration token tied to that prompt
+  /// result.
+  ///
+  /// Returns null on any failure (no Firebase config, denied
+  /// permission, network blip during initial token mint, web /
+  /// desktop platform). Callers always treat a null token as
+  /// "skip the UPSERT" — never as an error condition.
   Future<String?> _fetchPlatformToken(String platform) async {
-    // TODO(push): replace with:
-    //   await FirebaseMessaging.instance.requestPermission();
-    //   return FirebaseMessaging.instance.getToken();
-    return null;
+    try {
+      // Web / desktop builds don't ship with FCM today; the call
+      // would throw on those targets. We pre-filter in
+      // [_currentPlatform] so this method only runs on iOS /
+      // Android, but defend in depth for the case of a future
+      // platform string we add to the CHECK constraint before
+      // the FCM coverage catches up.
+      if (platform != 'ios' && platform != 'android') {
+        return null;
+      }
+      return await FirebaseMessaging.instance.getToken();
+    } catch (e) {
+      debugPrint('[push] FCM getToken failed: $e');
+      return null;
+    }
   }
 }

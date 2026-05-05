@@ -18,6 +18,7 @@ import '../../features/measurements/presentation/manual_measurement_screen.dart'
 import '../../features/measurements/presentation/book_tailor_screen.dart';
 import '../../features/measurements/presentation/tailor_review_screen.dart';
 import '../../features/measurements/presentation/tailor_selection_screen.dart';
+import '../../features/promotions/presentation/offers_screen.dart';
 import '../../features/measurements/presentation/ai_scanner/ai_scan_intro_screen.dart';
 import '../../features/measurements/presentation/ai_scanner/ai_camera_screen.dart';
 import '../../features/measurements/presentation/ai_scanner/ai_scanning_screen.dart';
@@ -459,6 +460,18 @@ abstract final class AppRouter {
         path: '/borrow-requests',
         name: 'borrowRequests',
         builder: (context, state) => const BorrowRequestsScreen(),
+      ),
+
+      // ── Marketing & Promotions ──
+      // The "Active Offers & Sales" dashboard. Reachable manually
+      // from the Home AppBar's percent-tag icon and via the deep
+      // link FCM pushes use (data: { route: '/offers' }) when a
+      // new sale goes live — the PushNotificationService routes
+      // here on tap.
+      GoRoute(
+        path: '/offers',
+        name: 'offers',
+        builder: (context, state) => const OffersScreen(),
       ),
     ],
   );

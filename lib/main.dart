@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
@@ -7,6 +8,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import 'core/locale/money.dart';
 import 'core/network/supabase_client.dart';
+import 'core/push/push_notification_service.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/wardrobe_calendar/data/notification_service.dart';
@@ -35,6 +37,24 @@ void main() async {
   }
 
   await AppSupabase.init();
+
+  // Firebase + push notifications. Wrapped in a try/catch because
+  // builds without google-services.json / GoogleService-Info.plist
+  // (e.g. fresh dev clones, CI smoke tests) would otherwise crash
+  // here — and a missing Firebase config shouldn't block the rest
+  // of the app from booting. PushNotificationService.initialize is
+  // also defensive: it catches its own errors so the worst case
+  // is "no marketing pushes today, app still works fine".
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint(
+      'Firebase: initializeApp failed — push notifications disabled '
+      'until google-services.json / GoogleService-Info.plist is added '
+      '($e)',
+    );
+  }
+  unawaited(PushNotificationService.instance.initialize());
 
   // Currency localization. Fire-and-forget on purpose: the catalog is
   // INR-denominated, so even if the FX fetch hasn't finished by the
