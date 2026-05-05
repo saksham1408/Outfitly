@@ -1,18 +1,30 @@
 import 'package:flutter/foundation.dart';
 
-/// Roles in a family roster. The combo matching logic keys off this
-/// enum to find the right per-person item from a [ComboSet] template
-/// — e.g., "Father" maps to the kurta, "Daughter" maps to the
-/// lehenga. Six roles cover the common Indian-family shape; the
-/// catalog can be extended later (in-laws, siblings) without
-/// changing the public surface here.
+/// Roles in a family / couple roster.
+///
+/// Two role flavours coexist:
+///   * **Familial** — grandfather / grandmother / father / mother /
+///     son / daughter. Used by the family roster builder where the
+///     framing is "who's in this household".
+///   * **Generic adult** — male / female. Used by the Couple
+///     shortcut where the framing is "two adults in matching looks"
+///     — agnostic to whether they're parents, dating, engaged.
+///
+/// Combo templates and the garment catalog declare prices /
+/// options for both flavours so either branch of the wizard
+/// reaches the Lookbook with non-empty results.
 enum FamilyRole {
   grandfather,
   grandmother,
   father,
   mother,
   son,
-  daughter;
+  daughter,
+  /// Used by the Couple shortcut — "Male" is the adult-male
+  /// without the "father" framing.
+  male,
+  /// Couple shortcut counterpart of [male].
+  female;
 
   /// Display label used on the roster builder card and the
   /// per-member breakdown on the Lookbook results.
@@ -30,12 +42,16 @@ enum FamilyRole {
         return 'Son';
       case FamilyRole.daughter:
         return 'Daughter';
+      case FamilyRole.male:
+        return 'Male';
+      case FamilyRole.female:
+        return 'Female';
     }
   }
 
   /// Whether this role represents a child. Drives the kid-card
   /// quantity selector — adults are toggled (1 or 0), kids get
-  /// a +/- counter.
+  /// a +/- counter. Male / female are explicitly adult.
   bool get isChild =>
       this == FamilyRole.son || this == FamilyRole.daughter;
 }
@@ -67,12 +83,15 @@ class FamilyMember {
   int get hashCode => Object.hash(role, quantity);
 }
 
-/// Two predefined rosters used by the Couple-flavour shortcut on
-/// the combo selection screen. Family flow builds its roster
-/// dynamically via the FamilyBuilderScreen.
+/// Predefined rosters used by the Couple-flavour shortcut on the
+/// combo selection screen. Uses the generic [FamilyRole.male] /
+/// [FamilyRole.female] roles rather than father/mother so the
+/// labels read "Male" / "Female" throughout the wizard — the
+/// couple flow doesn't assume the two adults are parents. Family
+/// flow builds its roster dynamically via the FamilyBuilderScreen.
 class CoupleRoster {
   static const List<FamilyMember> defaultRoster = [
-    FamilyMember(role: FamilyRole.father),
-    FamilyMember(role: FamilyRole.mother),
+    FamilyMember(role: FamilyRole.male),
+    FamilyMember(role: FamilyRole.female),
   ];
 }

@@ -128,6 +128,11 @@ const List<_ComboTemplate> _templates = [
       FamilyRole.mother: _ItemSpec('Cobalt Silk Saree', 5500),
       FamilyRole.son: _ItemSpec('Mini Royal Blue Kurta', 1800),
       FamilyRole.daughter: _ItemSpec('Royal Blue Lehenga', 2200),
+      // Couple-flow: same garments as the parental roles, named
+      // generically so the Lookbook breakdown reads "Male: Royal
+      // Blue Silk Kurta" instead of "Father: …".
+      FamilyRole.male: _ItemSpec('Royal Blue Silk Kurta', 4500),
+      FamilyRole.female: _ItemSpec('Cobalt Silk Saree', 5500),
     },
   ),
   _ComboTemplate(
@@ -143,6 +148,8 @@ const List<_ComboTemplate> _templates = [
       FamilyRole.mother: _ItemSpec('Blush Pink Anarkali', 6200),
       FamilyRole.son: _ItemSpec('Mini Mint Bandhgala', 2000),
       FamilyRole.daughter: _ItemSpec('Pastel Pink Lehenga', 2400),
+      FamilyRole.male: _ItemSpec('Mint Linen Kurta', 4200),
+      FamilyRole.female: _ItemSpec('Blush Pink Anarkali', 6200),
     },
   ),
   _ComboTemplate(
@@ -158,6 +165,8 @@ const List<_ComboTemplate> _templates = [
       FamilyRole.mother: _ItemSpec('Gold Tissue Saree', 6800),
       FamilyRole.son: _ItemSpec('Cream Mini Kurta', 2100),
       FamilyRole.daughter: _ItemSpec('Gold Lehenga with Mirror Work', 2600),
+      FamilyRole.male: _ItemSpec('Cream Silk Kurta with Gold Buttons', 5000),
+      FamilyRole.female: _ItemSpec('Gold Tissue Saree', 6800),
     },
   ),
   _ComboTemplate(
@@ -174,6 +183,8 @@ const List<_ComboTemplate> _templates = [
       FamilyRole.mother: _ItemSpec('Charcoal Anarkali', 4800),
       FamilyRole.son: _ItemSpec('Mini Charcoal Kurta', 1500),
       FamilyRole.daughter: _ItemSpec('Black Tulle Lehenga', 1900),
+      FamilyRole.male: _ItemSpec('Slate Kurta-Pyjama', 3800),
+      FamilyRole.female: _ItemSpec('Charcoal Anarkali', 4800),
     },
   ),
 ];

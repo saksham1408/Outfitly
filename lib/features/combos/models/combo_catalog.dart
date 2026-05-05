@@ -53,6 +53,27 @@ const Map<FamilyRole, List<String>> kGarmentsByRole = {
     'Anarkali',
     'Salwar',
   ],
+  // ── Couple-flow generic adults ──
+  // Same option set as Father / Mother, just framed without the
+  // parental role. Keeping them as separate map entries (vs.
+  // aliasing father→male) means a future product team can tune
+  // couple-only options independently — e.g. add a "Co-ord Set"
+  // that doesn't make sense for a Father in a family wizard.
+  FamilyRole.male: <String>[
+    'Kurta',
+    'Sherwani',
+    'Bandhgala',
+    'Suit',
+    'Shirt',
+    'Indo-Western',
+  ],
+  FamilyRole.female: <String>[
+    'Saree',
+    'Anarkali',
+    'Lehenga',
+    'Salwar Suit',
+    'Gown',
+  ],
 };
 
 /// Fabric swatches surfaced on the fabric-selection screen.

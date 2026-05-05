@@ -273,8 +273,10 @@ class _MemberSizeCard extends StatelessWidget {
       case FamilyRole.grandmother:
         return Icons.elderly_woman;
       case FamilyRole.father:
+      case FamilyRole.male:
         return Icons.man_rounded;
       case FamilyRole.mother:
+      case FamilyRole.female:
         return Icons.woman_rounded;
       case FamilyRole.son:
         return Icons.boy_rounded;
