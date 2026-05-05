@@ -1,48 +1,36 @@
 // ============================================================
 // Outfitly Edge Function — notify-appointment
 // ------------------------------------------------------------
-// Fans out a push notification to every device token registered
-// for the parties affected by a tailor_appointments status
-// change. Invoked from a Supabase Database Webhook wired to the
-// `tailor_appointments` table (INSERT and UPDATE) — the webhook
-// payload hands us old_record + record + event type and we
-// decide who to ping and what to say.
+// Fan-out a push to the right party when a row in
+// `tailor_appointments` lands or transitions.
 //
-// Who gets pinged, by event:
+// Audience by event:
 //
-//   * INSERT (status='pending') — a new dispatch request —
-//     every ONLINE tailor (app='tailor') in `device_tokens`.
-//     Customer doesn't get a push yet; they see the "Finding a
-//     tailor" card on the visit tracking screen.
+//   * INSERT status='pending' (legacy broadcast booking) →
+//     every ONLINE tailor (app='tailor', user_id IS NULL filter
+//     in fetchTokens means "all rows that match the app").
+//   * INSERT status='pending_tailor_approval' (marketplace
+//     direct request) → only the chosen tailor (record.tailor_id).
+//   * UPDATE pending → accepted → push CUSTOMER.
+//   * UPDATE → en_route, arrived, completed → push CUSTOMER.
+//   * UPDATE accepted → cancelled → push the assigned TAILOR
+//     (so they stop heading over). pending → cancelled has no
+//     audience (broadcast was never claimed).
 //
-//   * UPDATE status: 'pending' -> 'accepted' — the customer's
-//     tokens (app='customer', user_id=row.user_id). Copy: "Your
-//     tailor is on the way." (wording depends on the actual
-//     transition; see _copyFor below.)
-//
-//   * UPDATE status: 'accepted' -> 'en_route' / 'en_route' ->
-//     'arrived' / 'arrived' -> 'completed' — the customer's
-//     tokens. Wording tracks the state so the screen and push
-//     read as a single narrative.
-//
-//   * UPDATE status: 'pending' -> 'cancelled' — the single
-//     accepted tailor's tokens (they need to stop heading over).
-//
-// This is a SCAFFOLD. The FCM call at the bottom is commented
-// out because we need a `FCM_SERVER_KEY` secret set on the
-// project before we can deliver — until then the function logs
-// the intended send and returns 200 so the webhook doesn't
-// retry.
-//
-// To go live:
-//   1. Create a Firebase project + Cloud Messaging API key.
-//   2. supabase secrets set FCM_SERVER_KEY=<key>
-//   3. supabase functions deploy notify-appointment
-//   4. Wire a Database Webhook on tailor_appointments → this fn.
+// Auth: FCM HTTP v1 via service-account JWT. See
+// supabase/functions/_shared/fcm.ts. FCM_SERVICE_ACCOUNT must
+// be set as a Supabase secret to deliver; without it the
+// function logs and returns 200 (scaffold mode).
 // ============================================================
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+
+import {
+  mintAccessToken,
+  readServiceAccount,
+  sendFcmMessage,
+} from '../_shared/fcm.ts';
 
 interface WebhookPayload {
   type: 'INSERT' | 'UPDATE' | 'DELETE';
@@ -63,18 +51,14 @@ interface AppointmentRow {
 
 interface DeviceTokenRow {
   token: string;
-  platform: 'ios' | 'android' | 'web';
 }
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const fcmServerKey = Deno.env.get('FCM_SERVER_KEY') ?? '';
-
 const supabase = createClient(supabaseUrl, serviceRoleKey);
 
 serve(async (req) => {
   const payload = (await req.json()) as WebhookPayload;
-
   if (payload.table !== 'tailor_appointments') {
     return new Response('ignored', { status: 200 });
   }
@@ -82,62 +66,76 @@ serve(async (req) => {
   const record = payload.record as unknown as AppointmentRow;
   const oldRecord = payload.old_record as unknown as AppointmentRow | null;
 
-  // Decide audience + copy from the transition.
   const plan = resolvePushPlan(payload.type, record, oldRecord);
   if (!plan) {
     return new Response('no push for this transition', { status: 200 });
   }
 
-  // Look up the tokens.
   const tokens = await fetchTokens(plan.audience);
   if (tokens.length === 0) {
-    console.log(`[notify] no tokens for audience: ${JSON.stringify(plan.audience)}`);
+    console.log(
+      `[notify-appointment] no tokens for ${JSON.stringify(plan.audience)}`,
+    );
     return new Response('no tokens', { status: 200 });
   }
 
-  console.log(`[notify] firing ${tokens.length} push(es): ${plan.title}`);
+  console.log(
+    `[notify-appointment] ${tokens.length} push(es) → app=${plan.audience.app} user=${plan.audience.userId ?? 'broadcast'}: ${plan.title}`,
+  );
 
-  // Real delivery — gated on the FCM server key being set. Until
-  // the secret is configured we log-and-noop so the webhook chain
-  // stays healthy.
-  if (!fcmServerKey) {
-    console.log('[notify] FCM_SERVER_KEY not set — scaffold no-op');
+  const sa = readServiceAccount();
+  if (!sa) {
+    console.log(
+      '[notify-appointment] FCM_SERVICE_ACCOUNT not set — scaffold no-op',
+    );
     return new Response('scaffold no-op', { status: 200 });
   }
 
+  const accessToken = await mintAccessToken(sa);
+  if (!accessToken) {
+    return new Response('could not mint FCM token', { status: 200 });
+  }
+
+  let okCount = 0;
+  let failCount = 0;
   for (const t of tokens) {
-    try {
-      const res = await fetch('https://fcm.googleapis.com/fcm/send', {
-        method: 'POST',
-        headers: {
-          'Authorization': `key=${fcmServerKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          to: t.token,
-          notification: {
-            title: plan.title,
-            body: plan.body,
-          },
-          data: {
-            appointment_id: record.id,
-            status: record.status,
-          },
-        }),
-      });
-      if (!res.ok) {
-        console.warn(`[notify] FCM ${res.status}: ${await res.text()}`);
-      }
-    } catch (e) {
-      console.error('[notify] FCM call failed', e);
+    const r = await sendFcmMessage(sa, accessToken, {
+      token: t.token,
+      notification: { title: plan.title, body: plan.body },
+      data: {
+        appointment_id: record.id,
+        status: record.status,
+        // Customer-directed pushes deep-link into the live
+        // tracker; tailor-directed pushes drop the route so
+        // the Partner app stays on its radar/active job
+        // surface (it has its own router and doesn't share
+        // /tailor-visit/:id with the customer app anyway).
+        ...(plan.audience.app === 'customer'
+          ? { route: `/tailor-visit/${record.id}` }
+          : {}),
+      },
+      collapseKey: `appt:${record.id}`,
+    });
+    if (r.ok) okCount++;
+    else {
+      failCount++;
+      console.warn(
+        `[notify-appointment] FCM ${r.status} for token ${t.token.slice(0, 12)}…: ${r.body}`,
+      );
     }
   }
 
-  return new Response('ok', { status: 200 });
+  console.log(
+    `[notify-appointment] done. delivered=${okCount} failed=${failCount}`,
+  );
+  return new Response(
+    JSON.stringify({ delivered: okCount, failed: failCount }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } },
+  );
 });
 
 // ────────────────────────────────────────────────────────────
-// Transition → (audience, title, body)
+// Transition → audience + copy
 // ────────────────────────────────────────────────────────────
 interface PushPlan {
   audience: { userId: string | null; app: 'customer' | 'tailor' };
@@ -150,15 +148,28 @@ function resolvePushPlan(
   record: AppointmentRow,
   oldRecord: AppointmentRow | null,
 ): PushPlan | null {
-  if (event === 'INSERT' && record.status === 'pending') {
-    // Broadcast to every online tailor — we represent "broadcast
-    // across an app" by audience.userId === null, which
-    // fetchTokens reads as "no user_id filter".
-    return {
-      audience: { userId: null, app: 'tailor' },
-      title: 'New dispatch request',
-      body: `Tailoring visit at ${record.address}`,
-    };
+  // INSERT branches — two booking modes:
+  if (event === 'INSERT') {
+    // Legacy broadcast — fan out to every online tailor.
+    if (record.status === 'pending' && record.tailor_id === null) {
+      return {
+        audience: { userId: null, app: 'tailor' },
+        title: 'New dispatch request',
+        body: `Tailoring visit at ${record.address}`,
+      };
+    }
+    // Marketplace direct — only the chosen tailor sees this.
+    if (
+      record.status === 'pending_tailor_approval' &&
+      record.tailor_id !== null
+    ) {
+      return {
+        audience: { userId: record.tailor_id, app: 'tailor' },
+        title: 'You\'ve been selected',
+        body: `A customer hand-picked you for a visit at ${record.address}.`,
+      };
+    }
+    return null;
   }
 
   if (event !== 'UPDATE' || oldRecord === null) return null;
@@ -170,7 +181,7 @@ function resolvePushPlan(
       return {
         audience: { userId: record.user_id, app: 'customer' },
         title: 'Your tailor accepted',
-        body: 'They\'ll head out to you shortly.',
+        body: "They'll head out to you shortly.",
       };
     case 'en_route':
       return {
@@ -191,15 +202,18 @@ function resolvePushPlan(
         body: 'Saved to your profile.',
       };
     case 'cancelled':
-      // Only ping the tailor if this was an accepted visit they
-      // were driving to — a pending cancellation has nobody to
-      // notify on the Partner side.
-      if (oldRecord.status === 'pending') return null;
+      // pending → cancelled has nobody to notify on the
+      // Partner side (broadcast was never claimed). Same for
+      // pending_tailor_approval if we never accepted. Only
+      // ping the tailor if they were already in motion.
+      if (
+        oldRecord.status === 'pending' ||
+        oldRecord.status === 'pending_tailor_approval'
+      ) {
+        return null;
+      }
       return {
-        audience: {
-          userId: record.tailor_id,
-          app: 'tailor',
-        },
+        audience: { userId: record.tailor_id, app: 'tailor' },
         title: 'Visit cancelled',
         body: 'The customer cancelled — you can head back.',
       };
@@ -213,7 +227,7 @@ async function fetchTokens(
 ): Promise<DeviceTokenRow[]> {
   let q = supabase
     .from('device_tokens')
-    .select('token, platform')
+    .select('token')
     .eq('app', audience.app);
 
   if (audience.userId !== null) {
@@ -222,7 +236,7 @@ async function fetchTokens(
 
   const { data, error } = await q;
   if (error) {
-    console.error('[notify] token fetch failed', error);
+    console.error('[notify-appointment] token fetch failed', error);
     return [];
   }
   return (data ?? []) as DeviceTokenRow[];

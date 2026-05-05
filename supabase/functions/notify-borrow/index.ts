@@ -1,47 +1,35 @@
 // ============================================================
 // Outfitly Edge Function — notify-borrow
 // ------------------------------------------------------------
-// Fans out a push notification to the right party when a row in
-// `borrow_requests` is INSERTed or its status UPDATEs. Mirrors
-// the structure of `notify-appointment` so a single FCM-key
-// rollout flips both production live.
+// Fan-out a push notification to the right party when a row in
+// `borrow_requests` is INSERTed or its status UPDATEs.
 //
 // Audience by event:
 //
 //   * INSERT (status='pending') — borrower asked owner to lend.
-//     Push the OWNER (audience: customer app, user_id = owner_id).
+//     Push the OWNER ("New borrow request").
+//   * UPDATE pending → approved — push BORROWER.
+//   * UPDATE pending → denied — push BORROWER.
+//   * UPDATE pending → cancelled — push OWNER (request withdrawn).
+//   * UPDATE approved → returned — push BOTH parties (we don't
+//     track who marked it). Collapse-id dedupes on the receiving
+//     side.
+//   * UPDATE → active — purely advisory, no push.
 //
-//   * UPDATE 'pending' → 'approved' — owner said yes.
-//     Push the BORROWER.
-//
-//   * UPDATE 'pending' → 'denied' — owner said no.
-//     Push the BORROWER.
-//
-//   * UPDATE 'approved' → 'returned' — garment came back.
-//     Push the OPPOSITE party from whoever marked it.
-//     Without an audit column ("who marked it") we can't tell
-//     definitively, so we ping both — same row, deduped on the
-//     receiving end via the apns-collapse-id / fcm collapse_key.
-//
-//   * UPDATE 'pending' → 'cancelled' — borrower withdrew.
-//     Push the OWNER (so they know the request went away).
-//
-// SCAFFOLD: real delivery is gated on FCM_SERVER_KEY. Without it
-// we log and return 200 so the webhook stays healthy; once you
-// set the secret, the same fetch path goes live.
-//
-// To go live:
-//   1. Same Firebase Cloud Messaging key as notify-appointment
-//      (one project, one server key).
-//   2. supabase secrets set FCM_SERVER_KEY=<key>     (already
-//      done if notify-appointment is live)
-//   3. supabase functions deploy notify-borrow
-//   4. Wire a Database Webhook on borrow_requests → this fn,
-//      events: INSERT + UPDATE.
+// Auth: FCM HTTP v1 via service-account JWT. See
+// supabase/functions/_shared/fcm.ts for the helper. Set
+// FCM_SERVICE_ACCOUNT in Supabase secrets to go live; without
+// it the function logs and returns 200 (scaffold mode).
 // ============================================================
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+
+import {
+  mintAccessToken,
+  readServiceAccount,
+  sendFcmMessage,
+} from '../_shared/fcm.ts';
 
 interface WebhookPayload {
   type: 'INSERT' | 'UPDATE' | 'DELETE';
@@ -64,18 +52,14 @@ interface BorrowRow {
 
 interface DeviceTokenRow {
   token: string;
-  platform: 'ios' | 'android' | 'web';
 }
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const fcmServerKey = Deno.env.get('FCM_SERVER_KEY') ?? '';
-
 const supabase = createClient(supabaseUrl, serviceRoleKey);
 
 serve(async (req) => {
   const payload = (await req.json()) as WebhookPayload;
-
   if (payload.table !== 'borrow_requests') {
     return new Response('ignored', { status: 200 });
   }
@@ -88,6 +72,20 @@ serve(async (req) => {
     return new Response('no push for this transition', { status: 200 });
   }
 
+  const sa = readServiceAccount();
+  if (!sa) {
+    console.log('[notify-borrow] FCM_SERVICE_ACCOUNT not set — scaffold no-op');
+    return new Response('scaffold no-op', { status: 200 });
+  }
+
+  const accessToken = await mintAccessToken(sa);
+  if (!accessToken) {
+    return new Response('could not mint FCM token', { status: 200 });
+  }
+
+  let okCount = 0;
+  let failCount = 0;
+
   for (const plan of plans) {
     const tokens = await fetchTokens(plan.targetUserId);
     if (tokens.length === 0) {
@@ -95,57 +93,48 @@ serve(async (req) => {
       continue;
     }
     console.log(
-      `[notify-borrow] firing ${tokens.length} push(es) to ${plan.targetUserId}: ${plan.title}`,
+      `[notify-borrow] ${tokens.length} push(es) → ${plan.targetUserId}: ${plan.title}`,
     );
 
-    if (!fcmServerKey) {
-      console.log('[notify-borrow] FCM_SERVER_KEY not set — scaffold no-op');
-      continue;
-    }
-
     for (const t of tokens) {
-      try {
-        const res = await fetch('https://fcm.googleapis.com/fcm/send', {
-          method: 'POST',
-          headers: {
-            'Authorization': `key=${fcmServerKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            to: t.token,
-            notification: {
-              title: plan.title,
-              body: plan.body,
-            },
-            data: {
-              borrow_request_id: record.id,
-              status: record.status,
-              wardrobe_item_id: record.wardrobe_item_id,
-            },
-            // Collapse same-row repeats so a quick approve→return
-            // pair doesn't spam two banners on top of each other.
-            collapse_key: `borrow:${record.id}`,
-          }),
-        });
-        if (!res.ok) {
-          console.warn(
-            `[notify-borrow] FCM ${res.status}: ${await res.text()}`,
-          );
-        }
-      } catch (e) {
-        console.error('[notify-borrow] FCM call failed', e);
+      const r = await sendFcmMessage(sa, accessToken, {
+        token: t.token,
+        notification: { title: plan.title, body: plan.body },
+        data: {
+          borrow_request_id: record.id,
+          status: record.status,
+          wardrobe_item_id: record.wardrobe_item_id,
+          // Borrow rows live on the borrow-requests dashboard
+          // (the swap-arrows icon next to Loop). Sending the user
+          // there feels right whether they're owner or borrower —
+          // the screen has both Incoming + Outgoing tabs.
+          route: '/borrow-requests',
+        },
+        collapseKey: `borrow:${record.id}`,
+      });
+      if (r.ok) okCount++;
+      else {
+        failCount++;
+        console.warn(
+          `[notify-borrow] FCM ${r.status} for token ${t.token.slice(0, 12)}…: ${r.body}`,
+        );
       }
     }
   }
 
-  return new Response('ok', { status: 200 });
+  console.log(
+    `[notify-borrow] done. delivered=${okCount} failed=${failCount}`,
+  );
+  return new Response(
+    JSON.stringify({ delivered: okCount, failed: failCount }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } },
+  );
 });
 
 // ────────────────────────────────────────────────────────────
 // Transition → list of push plans
-// We return a list because the 'returned' transition pings BOTH
-// parties (we don't know which side tapped Mark Returned without
-// an audit column).
+// Returns a list because 'returned' pings BOTH parties (we
+// don't track who tapped Mark Returned).
 // ────────────────────────────────────────────────────────────
 interface PushPlan {
   targetUserId: string;
@@ -158,15 +147,16 @@ function resolvePushPlans(
   record: BorrowRow,
   oldRecord: BorrowRow | null,
 ): PushPlan[] {
-  // INSERT — owner gets pinged, borrower already knows.
   if (event === 'INSERT' && record.status === 'pending') {
-    return [{
-      targetUserId: record.owner_id,
-      title: 'New borrow request',
-      body: record.note?.trim()
-        ? `"${truncate(record.note.trim(), 120)}"`
-        : 'A friend wants to borrow an item from your closet.',
-    }];
+    return [
+      {
+        targetUserId: record.owner_id,
+        title: 'New borrow request',
+        body: record.note?.trim()
+          ? `"${truncate(record.note.trim(), 120)}"`
+          : 'A friend wants to borrow an item from your closet.',
+      },
+    ];
   }
 
   if (event !== 'UPDATE' || oldRecord === null) return [];
@@ -174,28 +164,30 @@ function resolvePushPlans(
 
   switch (record.status) {
     case 'approved':
-      return [{
-        targetUserId: record.borrower_id,
-        title: 'Your borrow request was approved',
-        body: 'Coordinate the handoff with your friend.',
-      }];
+      return [
+        {
+          targetUserId: record.borrower_id,
+          title: 'Your borrow request was approved',
+          body: 'Coordinate the handoff with your friend.',
+        },
+      ];
     case 'denied':
-      return [{
-        targetUserId: record.borrower_id,
-        title: 'Your borrow request was declined',
-        body: 'No worries — try a different piece next time.',
-      }];
+      return [
+        {
+          targetUserId: record.borrower_id,
+          title: 'Your borrow request was declined',
+          body: 'No worries — try a different piece next time.',
+        },
+      ];
     case 'cancelled':
-      // Borrower withdrew. Tell the owner so it disappears from
-      // their inbox.
-      return [{
-        targetUserId: record.owner_id,
-        title: 'Borrow request withdrawn',
-        body: 'A pending request was cancelled.',
-      }];
+      return [
+        {
+          targetUserId: record.owner_id,
+          title: 'Borrow request withdrawn',
+          body: 'A pending request was cancelled.',
+        },
+      ];
     case 'returned':
-      // Either party may have marked it. Ping the OTHER side; the
-      // marker already saw the local update.
       return [
         {
           targetUserId: record.owner_id,
@@ -209,8 +201,7 @@ function resolvePushPlans(
         },
       ];
     case 'active':
-      // 'active' is purely advisory and computed on the client —
-      // we don't push it; the borrower already triggered it.
+      // Computed client-side; nothing to push.
       return [];
   }
 
@@ -220,7 +211,7 @@ function resolvePushPlans(
 async function fetchTokens(userId: string): Promise<DeviceTokenRow[]> {
   const { data, error } = await supabase
     .from('device_tokens')
-    .select('token, platform')
+    .select('token')
     .eq('app', 'customer')
     .eq('user_id', userId);
   if (error) {
