@@ -18,6 +18,13 @@ import '../../features/measurements/presentation/manual_measurement_screen.dart'
 import '../../features/measurements/presentation/book_tailor_screen.dart';
 import '../../features/measurements/presentation/tailor_review_screen.dart';
 import '../../features/measurements/presentation/tailor_selection_screen.dart';
+import '../../features/combos/models/combo_draft.dart';
+import '../../features/combos/presentation/combo_results_screen.dart';
+import '../../features/combos/presentation/combo_selection_screen.dart';
+import '../../features/combos/presentation/fabric_selection_screen.dart';
+import '../../features/combos/presentation/family_builder_screen.dart';
+import '../../features/combos/presentation/garment_selection_screen.dart';
+import '../../features/combos/presentation/size_selection_screen.dart';
 import '../../features/promotions/presentation/offers_screen.dart';
 import '../../features/measurements/presentation/ai_scanner/ai_scan_intro_screen.dart';
 import '../../features/measurements/presentation/ai_scanner/ai_camera_screen.dart';
@@ -472,6 +479,58 @@ abstract final class AppRouter {
         path: '/offers',
         name: 'offers',
         builder: (context, state) => const OffersScreen(),
+      ),
+
+      // ── Family & Combos ──
+      // Three screens: a fork (Couple vs Family), a roster
+      // builder (only entered on the Family branch), and a
+      // Lookbook results screen that takes a List<FamilyMember>
+      // via state.extra. Couple flow short-circuits the builder
+      // by routing straight from the fork to results with
+      // CoupleRoster.defaultRoster.
+      GoRoute(
+        path: '/combo-selection',
+        name: 'comboSelection',
+        builder: (context, state) => const ComboSelectionScreen(),
+      ),
+      GoRoute(
+        path: '/combos/builder',
+        name: 'comboBuilder',
+        builder: (context, state) => const FamilyBuilderScreen(),
+      ),
+      // Customization wizard (3 steps) sits between the Couple/
+      // Family fork and the matching-sets Lookbook. Each step
+      // takes a [ComboDraft] via state.extra and pushes the next
+      // step with copyWith — so the draft accumulates choices
+      // (roster → garments → fabric → sizes) as the user moves
+      // forward.
+      GoRoute(
+        path: '/combos/garments',
+        name: 'comboGarments',
+        builder: (context, state) => GarmentSelectionScreen(
+          draft: state.extra as ComboDraft,
+        ),
+      ),
+      GoRoute(
+        path: '/combos/fabric',
+        name: 'comboFabric',
+        builder: (context, state) => FabricSelectionScreen(
+          draft: state.extra as ComboDraft,
+        ),
+      ),
+      GoRoute(
+        path: '/combos/size',
+        name: 'comboSize',
+        builder: (context, state) => SizeSelectionScreen(
+          draft: state.extra as ComboDraft,
+        ),
+      ),
+      GoRoute(
+        path: '/combos/results',
+        name: 'comboResults',
+        builder: (context, state) => ComboResultsScreen(
+          draft: state.extra as ComboDraft,
+        ),
       ),
     ],
   );

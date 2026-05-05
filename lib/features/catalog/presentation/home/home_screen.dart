@@ -215,16 +215,13 @@ class _HomeScreenState extends State<HomeScreen>
           // Hero banner
           SliverToBoxAdapter(child: _buildHeroBanner()),
 
-          // NOTE: The "Book a Home Tailor Visit" CTA used to live here
-          // unconditionally. It has been moved into the Design Studio
-          // (after the customer picks a fabric) so the offer surfaces at
-          // the moment it's actually relevant — once you've chosen a
-          // cloth, getting measured at home becomes the next logical
-          // step. See `DesignStudioScreen._buildFabricStep`.
-
-          // The Recreate-a-Look CTA used to live here; it now lives
-          // behind the AI launcher button in the bottom nav so the
-          // home screen stays focused on browsing the catalog.
+          // ── Family & Combos premium entry ──
+          // Anchored just under the hero so it's the first thing
+          // the user sees once they're past the marketing strip.
+          // Routes into the Couple-vs-Family fork at
+          // /combo-selection.
+          const SliverToBoxAdapter(child: SizedBox(height: 20)),
+          SliverToBoxAdapter(child: _buildFamilyCombosCta()),
 
           const SliverToBoxAdapter(child: SizedBox(height: 80)),
         ],
@@ -269,6 +266,118 @@ class _HomeScreenState extends State<HomeScreen>
       // No persistent selection on Home — each tap navigates away to the PLP.
       selectedId: null,
       onTap: _onSubCategoryTapped,
+    );
+  }
+
+  /// Premium "Family & Combos" CTA card — anchored just under
+  /// the hero banner. Visually distinct (deep purple → amber
+  /// gradient with a family-restroom icon as a textural beat)
+  /// so the eye lands on it as a separate offer from whatever
+  /// merch is running in the hero strip above. Tap routes to
+  /// the Couple-vs-Family fork.
+  Widget _buildFamilyCombosCta() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => context.push('/combo-selection'),
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.primary,
+                  Color(0xFF8B500A),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withAlpha(45),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(30),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.family_restroom_rounded,
+                    color: Colors.white,
+                    size: 30,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Family & Combos',
+                            style: GoogleFonts.manrope(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.accentContainer.withAlpha(80),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              'NEW',
+                              style: GoogleFonts.manrope(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.8,
+                                color: AppColors.accentContainer,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Couple looks + full-family sets — coordinated palette, one tap',
+                        style: GoogleFonts.manrope(
+                          fontSize: 12,
+                          color: Colors.white.withAlpha(200),
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: Colors.white.withAlpha(170),
+                  size: 16,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
