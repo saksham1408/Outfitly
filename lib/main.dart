@@ -12,6 +12,7 @@ import 'core/push/push_notification_service.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/wardrobe_calendar/data/notification_service.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,7 +47,13 @@ void main() async {
   // also defensive: it catches its own errors so the worst case
   // is "no marketing pushes today, app still works fine".
   try {
-    await Firebase.initializeApp();
+    // Pass explicit options from the FlutterFire-generated file so
+    // initialization is platform-aware on iOS without falling back
+    // to the GoogleService-Info.plist autodiscovery — keeps the
+    // boot path identical across iOS, Android, and (future) web.
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   } catch (e) {
     debugPrint(
       'Firebase: initializeApp failed — push notifications disabled '

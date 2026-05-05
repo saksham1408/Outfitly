@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "1028710749210",
+    "firebase_url": "https://outfitly-bccd3-default-rtdb.firebaseio.com",
+    "project_id": "outfitly-bccd3",
+    "storage_bucket": "outfitly-bccd3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1028710749210:android:929c8ec39d62d836b12da3",
+        "android_client_info": {
+          "package_name": "com.outfitly.outfitly"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAnTgXddE2-c7JeY7kQ1ZUN-L7BT2V39yI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
