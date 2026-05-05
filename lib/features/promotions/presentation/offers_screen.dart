@@ -92,13 +92,16 @@ class _OfferCard extends StatelessWidget {
 
   void _onTap(BuildContext context) {
     final route = offer.targetRoute;
-    if (route != null && route.isNotEmpty) {
-      context.push(route);
-    } else {
-      // No deep-link configured — bounce to the catalog so the
-      // tap still lands somewhere useful.
-      context.push('/catalog');
-    }
+    // Defensive: if the offer points back at /offers (the screen
+    // we're already on) OR has no route at all, bounce to /catalog
+    // so the tap always goes somewhere different. Without this,
+    // a marketing row with target_route='/offers' would push the
+    // same screen on top of itself — the user sees no visible
+    // change and assumes the tap is broken.
+    final isUseful = route != null &&
+        route.isNotEmpty &&
+        route != '/offers';
+    context.push(isUseful ? route : '/catalog');
   }
 
   @override
