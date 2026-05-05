@@ -185,6 +185,34 @@ class _MemberSizeCard extends StatelessWidget {
   final String? selected;
   final ValueChanged<String> onSelect;
 
+  /// What to render in the right-aligned summary pill — the raw
+  /// stored string isn't always pretty (the manual-measurements
+  /// case is a long "Custom: chest…, waist…" line that doesn't
+  /// fit). Compact it down to a 1-word label so the pill stays
+  /// readable.
+  String? get _selectedPillLabel {
+    if (selected == null) return null;
+    if (isManualSize(selected)) return 'Custom';
+    if (isTailorVisitSize(selected)) return 'Tailor';
+    return selected;
+  }
+
+  Future<void> _openManualSheet(BuildContext context) async {
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ManualMeasurementsSheet(
+        memberLabel: spec.label,
+        // Pre-fill if the user is editing an existing manual
+        // entry — parses the "Custom: chest 38, …" string back
+        // into the four fields.
+        initial: isManualSize(selected) ? selected : null,
+      ),
+    );
+    if (result != null) onSelect(result);
+  }
+
   @override
   Widget build(BuildContext context) {
     final options = spec.role.isChild ? kKidSizes : kAdultSizes;
@@ -226,7 +254,7 @@ class _MemberSizeCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (selected != null)
+              if (_selectedPillLabel != null)
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
@@ -237,7 +265,7 @@ class _MemberSizeCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    selected!,
+                    _selectedPillLabel!,
                     style: GoogleFonts.manrope(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
@@ -261,6 +289,61 @@ class _MemberSizeCard extends StatelessWidget {
                 ),
             ],
           ),
+          const SizedBox(height: 12),
+          // Soft divider separates "off-the-rack" sizes above from
+          // the bespoke alternatives below.
+          Container(
+            height: 1,
+            color: AppColors.primary.withAlpha(15),
+          ),
+          const SizedBox(height: 12),
+          // Two side-by-side alternatives — manual measurements
+          // for someone who knows their numbers, home-tailor for
+          // someone who'd rather have it taken in person. Each
+          // member picks independently so a 6-year-old can have
+          // a chart size while their parent picks tailor visit.
+          Row(
+            children: [
+              Expanded(
+                child: _AltOption(
+                  icon: Icons.edit_note_rounded,
+                  label: 'Enter manually',
+                  selected: isManualSize(selected),
+                  onTap: () => _openManualSheet(context),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _AltOption(
+                  icon: Icons.home_repair_service_rounded,
+                  label: 'Home tailor',
+                  selected: isTailorVisitSize(selected),
+                  onTap: () => onSelect(kSizeHomeTailor),
+                ),
+              ),
+            ],
+          ),
+          if (isManualSize(selected)) ...[
+            const SizedBox(height: 10),
+            Text(
+              selected!,
+              style: GoogleFonts.manrope(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+          ] else if (isTailorVisitSize(selected)) ...[
+            const SizedBox(height: 10),
+            Text(
+              'A tailor will visit and take exact measurements before stitching begins.',
+              style: GoogleFonts.manrope(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -283,6 +366,304 @@ class _MemberSizeCard extends StatelessWidget {
       case FamilyRole.daughter:
         return Icons.girl_rounded;
     }
+  }
+}
+
+/// One of the two off-chart alternatives — visually distinct from
+/// the chart-size chips so users read it as "different KIND of
+/// option" rather than "another size code".
+class _AltOption extends StatelessWidget {
+  const _AltOption({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 12,
+          ),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.primary
+                : AppColors.background,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected
+                  ? AppColors.primary
+                  : AppColors.primary.withAlpha(35),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: selected ? Colors.white : AppColors.primary,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: selected ? Colors.white : AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Modal sheet that captures four core measurements for a single
+/// member. Exact-fit fields are kept short on purpose — chest /
+/// waist / length / sleeve cover the vast majority of garments.
+/// The atelier refines anything else during the make.
+///
+/// Returns the encoded "Custom: …" string the size-selection map
+/// expects, or null if the user dismissed without saving.
+class _ManualMeasurementsSheet extends StatefulWidget {
+  const _ManualMeasurementsSheet({
+    required this.memberLabel,
+    this.initial,
+  });
+
+  final String memberLabel;
+  final String? initial;
+
+  @override
+  State<_ManualMeasurementsSheet> createState() =>
+      _ManualMeasurementsSheetState();
+}
+
+class _ManualMeasurementsSheetState
+    extends State<_ManualMeasurementsSheet> {
+  final _chest = TextEditingController();
+  final _waist = TextEditingController();
+  final _length = TextEditingController();
+  final _sleeve = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Re-hydrate from a prior pass so the user can edit a
+    // previously-entered set without re-typing every field.
+    final prior = widget.initial;
+    if (prior != null && isManualSize(prior)) {
+      // Strip the prefix and split the comma-list back into the
+      // four fields. Format is "Custom: chest 38, waist 32, …";
+      // missing fields stay empty rather than throwing.
+      final body = prior.substring(kSizeManualPrefix.length);
+      for (final part in body.split(',')) {
+        final tokens = part.trim().split(' ');
+        if (tokens.length < 2) continue;
+        final value = tokens.sublist(1).join(' ');
+        switch (tokens.first.toLowerCase()) {
+          case 'chest':
+            _chest.text = value;
+          case 'waist':
+            _waist.text = value;
+          case 'length':
+            _length.text = value;
+          case 'sleeve':
+            _sleeve.text = value;
+        }
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _chest.dispose();
+    _waist.dispose();
+    _length.dispose();
+    _sleeve.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final parts = <String>[];
+    void add(String label, TextEditingController c) {
+      final v = c.text.trim();
+      if (v.isNotEmpty) parts.add('$label $v');
+    }
+
+    add('chest', _chest);
+    add('waist', _waist);
+    add('length', _length);
+    add('sleeve', _sleeve);
+
+    if (parts.isEmpty) {
+      Navigator.of(context).pop();
+      return;
+    }
+    Navigator.of(context).pop('$kSizeManualPrefix${parts.join(', ')}');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: viewInsets),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '${widget.memberLabel} · enter measurements',
+              style: GoogleFonts.newsreader(
+                fontSize: 22,
+                fontStyle: FontStyle.italic,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'In inches. Skip any you don\'t know — atelier confirms during the make.',
+              style: GoogleFonts.manrope(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 18),
+            _MeasurementRow(label: 'Chest', controller: _chest),
+            const SizedBox(height: 12),
+            _MeasurementRow(label: 'Waist', controller: _waist),
+            const SizedBox(height: 12),
+            _MeasurementRow(label: 'Length', controller: _length),
+            const SizedBox(height: 12),
+            _MeasurementRow(label: 'Sleeve', controller: _sleeve),
+            const SizedBox(height: 22),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _save,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: Text(
+                  'Save measurements',
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MeasurementRow extends StatelessWidget {
+  const _MeasurementRow({
+    required this.label,
+    required this.controller,
+  });
+
+  final String label;
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 88,
+          child: Text(
+            label.toUpperCase(),
+            style: GoogleFonts.manrope(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+              color: AppColors.textTertiary,
+            ),
+          ),
+        ),
+        Expanded(
+          child: TextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            textInputAction: TextInputAction.next,
+            style: GoogleFonts.manrope(
+              fontSize: 14,
+              color: AppColors.textPrimary,
+            ),
+            decoration: InputDecoration(
+              hintText: '0.0',
+              hintStyle: GoogleFonts.manrope(
+                fontSize: 13,
+                color: AppColors.textTertiary,
+              ),
+              filled: true,
+              fillColor: AppColors.background,
+              suffixText: 'in',
+              suffixStyle: GoogleFonts.manrope(
+                fontSize: 12,
+                color: AppColors.textTertiary,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 

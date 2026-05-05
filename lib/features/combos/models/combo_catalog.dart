@@ -165,3 +165,27 @@ const List<String> kKidSizes = <String>[
   '10-12Y',
   '12-14Y',
 ];
+
+/// Sentinel string written into `sizeByMemberIndex` when a member
+/// asks for a home tailor visit instead of picking a chart size.
+/// The atelier sees this in `design_choices.size` on the order row
+/// and coordinates the visit from the back office.
+const String kSizeHomeTailor = 'Home Tailor Visit';
+
+/// Prefix written into `sizeByMemberIndex` when a member fills
+/// the manual-measurements sheet. Stored as
+/// `"Custom: chest 38, waist 32, length 44, sleeve 22"` so the
+/// values survive a round-trip through the orders table without
+/// us needing a sidecar JSON column.
+const String kSizeManualPrefix = 'Custom: ';
+
+/// True if the sentinel string represents the "home tailor"
+/// option (vs a chart size or manual measurements). Helpers
+/// here keep the parsing in one place — the size card and the
+/// completion check both call into this rather than duplicating
+/// the prefix-string check.
+bool isTailorVisitSize(String? value) =>
+    value == kSizeHomeTailor;
+
+bool isManualSize(String? value) =>
+    value != null && value.startsWith(kSizeManualPrefix);
