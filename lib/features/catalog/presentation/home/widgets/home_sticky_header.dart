@@ -85,13 +85,31 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
                       // to the detected city / a prompt.
                       Flexible(child: _DeliveryPillButton()),
 
-                      // Right-side actions. The dedicated "offers"
-                      // icon used to live here; with the hero
-                      // promo carousel surfacing every live sale
-                      // directly under this AppBar, the
-                      // standalone deep-link became redundant and
-                      // was removed.
+                      // Right-side actions, ordered left → right
+                      // by user-journey + visual rhythm:
+                      //   1. Profile (no badge) — sits next to
+                      //      the busy location pill so the eye
+                      //      gets a breath before the badged
+                      //      icon cluster.
+                      //   2. Notifications — what's new for you.
+                      //   3. Wishlist — what you saved.
+                      //   4. Cart — what you're buying. Cart at
+                      //      the rightmost edge follows every
+                      //      major shopping-app convention
+                      //      (Myntra / Nykaa / Amazon) and lands
+                      //      at the easiest thumb-reach.
                       const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: onProfileTap,
+                        padding: EdgeInsets.zero,
+                        constraints:
+                            const BoxConstraints(minWidth: 36, minHeight: 36),
+                        icon: const Icon(
+                          Icons.person_outline_rounded,
+                          size: 22,
+                          color: AppColors.primary,
+                        ),
+                      ),
                       _iconWithBadge(
                         icon: Icons.notifications_none_rounded,
                         badge: '3',
@@ -108,17 +126,6 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
                         onTap: onCartTap,
                       ),
                       const SizedBox(width: 4),
-                      IconButton(
-                        onPressed: onProfileTap,
-                        padding: EdgeInsets.zero,
-                        constraints:
-                            const BoxConstraints(minWidth: 36, minHeight: 36),
-                        icon: const Icon(
-                          Icons.person_outline_rounded,
-                          size: 22,
-                          color: AppColors.primary,
-                        ),
-                      ),
                     ],
                   ),
                 ),
