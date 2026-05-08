@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/location/location_service.dart';
 import '../../../../core/theme/theme.dart';
 import '../../../addresses/data/address_service.dart';
+import '../../../promotions/presentation/widgets/home_promo_carousel.dart';
 import '../../data/repositories/catalog_repository.dart';
 import '../../domain/models/app_category.dart';
 import '../../domain/models/sub_category.dart';
@@ -201,6 +202,14 @@ class _HomeScreenState extends State<HomeScreen>
               onTabTap: _onTabSelected,
             ),
           ),
+
+          // ── Hero promo carousel ──
+          // Auto-sliding marketing strip directly under the
+          // sticky AppBar. Renders flash-sale slides + uniquely
+          // designed bank-offer slides (metallic gradient with a
+          // copy-code CTA). Hides itself when there are no live
+          // offers, so it never reserves dead space.
+          const SliverToBoxAdapter(child: HomePromoCarousel()),
 
           // Subcategory row — shown once user taps a tab
           if (_userTappedTab) ...[

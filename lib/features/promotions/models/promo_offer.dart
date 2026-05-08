@@ -1,8 +1,42 @@
 import 'package:flutter/foundation.dart';
 
+/// Slide-design discriminator for the Home hero carousel.
+///
+/// Maps to the `offer_type` column on `public.promo_offers`
+/// (added in migration 041). Two variants today:
+///   * [sale]      — flash-sale slide: banner image + countdown.
+///   * [bankOffer] — premium credit-card-style slide: metallic
+///                   gradient + copy-code CTA.
+///
+/// Default to [sale] for any unknown / missing string so an
+/// in-progress schema change can't crash the carousel.
+enum OfferType {
+  sale,
+  bankOffer;
+
+  static OfferType fromDb(String? raw) {
+    switch (raw) {
+      case 'bank_offer':
+        return OfferType.bankOffer;
+      case 'sale':
+      default:
+        return OfferType.sale;
+    }
+  }
+
+  String get dbValue {
+    switch (this) {
+      case OfferType.sale:
+        return 'sale';
+      case OfferType.bankOffer:
+        return 'bank_offer';
+    }
+  }
+}
+
 /// One row from `public.promo_offers` — a sitewide marketing
 /// campaign surfaced on the customer "Active Offers & Sales"
-/// dashboard.
+/// dashboard *and* the new Home hero carousel.
 ///
 /// The model is read-only on the customer client; rows are
 /// authored by the marketing team via Directus and the customer
@@ -16,10 +50,12 @@ class PromoOffer {
     required this.endDate,
     required this.isActive,
     required this.createdAt,
+    required this.offerType,
     this.description,
     this.bannerImageUrl,
     this.targetRoute,
     this.promoCode,
+    this.bankName,
   });
 
   final String id;
@@ -53,6 +89,17 @@ class PromoOffer {
   final bool isActive;
 
   final DateTime createdAt;
+
+  /// Slide-design discriminator. Drives whether the carousel
+  /// renders a flash-sale layout or a metallic bank-offer card.
+  final OfferType offerType;
+
+  /// Issuer label rendered as a watermark on bank-offer slides
+  /// (e.g. "HDFC", "SBI"). Always null when [offerType] is
+  /// [OfferType.sale]; the column is allowed to hold any value
+  /// in the database but the carousel only reads it for
+  /// bank-offer rows.
+  final String? bankName;
 
   /// True iff the offer is published AND not yet expired. The
   /// dashboard renders only live offers; an expired-but-active
@@ -93,6 +140,10 @@ class PromoOffer {
       createdAt:
           DateTime.tryParse(map['created_at'] as String? ?? '')?.toLocal() ??
               DateTime.now(),
+      offerType: OfferType.fromDb(map['offer_type'] as String?),
+      bankName: (map['bank_name'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : (map['bank_name'] as String).trim(),
     );
   }
 }
