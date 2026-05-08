@@ -12,7 +12,10 @@ import '../../domain/models/sub_category.dart';
 import '../widgets/category_row_shimmer.dart';
 import '../widgets/error_retry.dart';
 import '../widgets/sub_category_row.dart';
+import 'widgets/atelier_story_card.dart';
+import 'widgets/featured_collections_row.dart';
 import 'widgets/home_sticky_header.dart';
+import 'widgets/style_quote_card.dart';
 
 /// Screen states: Loading → Data / Error.
 enum _LoadState { loading, data, error }
@@ -239,6 +242,25 @@ class _HomeScreenState extends State<HomeScreen>
           // Couple-vs-Family fork at /combo-selection.
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
           SliverToBoxAdapter(child: _buildFamilyCombosCta()),
+
+          // ── Editorial sections ──
+          // The home feed shifts from "service CTAs" (above) to
+          // "editorial / lookbook" (below) — the cadence used by
+          // premium fashion apps (Tatacliq Luxe, Nykaa Fashion,
+          // Pernia's Pop-Up) so the home reads like a magazine
+          // spread, not a product grid.
+
+          // Featured Collections — "The Edit" lookbook row.
+          const SliverToBoxAdapter(child: SizedBox(height: 28)),
+          const SliverToBoxAdapter(child: FeaturedCollectionsRow()),
+
+          // Atelier Story — long-form editorial card.
+          const SliverToBoxAdapter(child: SizedBox(height: 28)),
+          const SliverToBoxAdapter(child: AtelierStoryCard()),
+
+          // Style Quote — pure decorative breathing beat.
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          const SliverToBoxAdapter(child: StyleQuoteCard()),
 
           const SliverToBoxAdapter(child: SizedBox(height: 80)),
         ],
