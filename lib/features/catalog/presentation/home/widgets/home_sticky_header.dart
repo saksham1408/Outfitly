@@ -79,26 +79,13 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
                   ),
                   child: Row(
                     children: [
-                      // Premium pill: tap opens the delivery-address
-                      // bottom sheet. Label pulls from the selected
-                      // saved address when available, else falls back
-                      // to the detected city / a prompt.
-                      Flexible(child: _DeliveryPillButton()),
-
-                      // Right-side actions, ordered left → right
-                      // by user-journey + visual rhythm:
-                      //   1. Profile (no badge) — sits next to
-                      //      the busy location pill so the eye
-                      //      gets a breath before the badged
-                      //      icon cluster.
-                      //   2. Notifications — what's new for you.
-                      //   3. Wishlist — what you saved.
-                      //   4. Cart — what you're buying. Cart at
-                      //      the rightmost edge follows every
-                      //      major shopping-app convention
-                      //      (Myntra / Nykaa / Amazon) and lands
-                      //      at the easiest thumb-reach.
-                      const SizedBox(width: 8),
+                      // ── Profile (leftmost, near the border) ──
+                      // The unbadged anchor at the very left
+                      // mirrors the "avatar/account at the edge"
+                      // pattern used by Myntra and Nykaa. Sits
+                      // ~16dp off the screen border (parent
+                      // padding) so it reads as anchored without
+                      // looking cramped.
                       IconButton(
                         onPressed: onProfileTap,
                         padding: EdgeInsets.zero,
@@ -110,6 +97,27 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
                           color: AppColors.primary,
                         ),
                       ),
+                      const SizedBox(width: 10),
+
+                      // ── Location pill (middle, flexible) ──
+                      // Premium pill: tap opens the delivery-
+                      // address bottom sheet. Label pulls from
+                      // the selected saved address when
+                      // available, else falls back to the
+                      // detected city / a prompt.
+                      Flexible(child: _DeliveryPillButton()),
+
+                      // ── Visual gap before the icon cluster ──
+                      // Explicit breathing room so the pill
+                      // doesn't kiss the badged icons.
+                      const SizedBox(width: 14),
+
+                      // ── Right-side action cluster ──
+                      //   Notifications · Wishlist · Cart
+                      // Ordered by user-journey: what's new →
+                      // what you saved → what you're buying.
+                      // Cart at the rightmost is the
+                      // industry-standard thumb-reach slot.
                       _iconWithBadge(
                         icon: Icons.notifications_none_rounded,
                         badge: '3',
@@ -125,7 +133,6 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
                         badge: '2',
                         onTap: onCartTap,
                       ),
-                      const SizedBox(width: 4),
                     ],
                   ),
                 ),
