@@ -62,6 +62,7 @@ import '../../features/social_wardrobe/presentation/friend_closet_screen.dart';
 import '../../features/social_wardrobe/presentation/borrow_requests_screen.dart';
 import '../../features/custom_stitching/presentation/book_fabric_pickup_screen.dart';
 import '../../features/custom_stitching/presentation/custom_stitching_dashboard_screen.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
 
 /// Central route configuration for the app.
 abstract final class AppRouter {
@@ -533,6 +534,18 @@ abstract final class AppRouter {
         builder: (context, state) => ComboResultsScreen(
           draft: state.extra as ComboDraft,
         ),
+      ),
+
+      // ── Notifications ──
+      // Bell-icon target on the home AppBar. Backed by
+      // `public.notifications` (RLS-scoped to the calling user)
+      // and the FCM data.route deep-link contract — every push
+      // the user receives lands as a row here so they have a
+      // persistent feed in addition to the OS-level banner.
+      GoRoute(
+        path: '/notifications',
+        name: 'notifications',
+        builder: (context, state) => const NotificationsScreen(),
       ),
 
       // ── Stitch My Fabric ──

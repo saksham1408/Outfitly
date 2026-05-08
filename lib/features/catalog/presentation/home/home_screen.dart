@@ -194,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen>
               tabController: _tabController!,
               tabLabels: _topCategories.map((c) => c.name).toList(),
               onSearchTap: () => context.push('/search'),
-              onNotificationTap: () {},
+              onNotificationTap: () => context.push('/notifications'),
               onProfileTap: () => context.push('/profile'),
               onWishlistTap: () => context.push('/wishlist'),
               onCartTap: () => context.push('/cart'),

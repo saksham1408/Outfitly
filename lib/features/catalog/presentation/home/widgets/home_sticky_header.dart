@@ -6,6 +6,7 @@ import '../../../../../core/theme/theme.dart';
 import '../../../../addresses/data/address_service.dart';
 import '../../../../addresses/models/saved_address.dart';
 import '../../../../addresses/presentation/delivery_address_sheet.dart';
+import '../../../../notifications/data/notifications_repository.dart';
 
 /// Myntra-style sticky header for the home feed.
 /// Contains: Top row (location + icons) + Search bar + Gender tabs.
@@ -101,11 +102,11 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          _iconWithBadge(
-                            icon: Icons.notifications_none_rounded,
-                            badge: '3',
-                            onTap: onNotificationTap,
-                          ),
+                          // Bell icon — badge count is live,
+                          // pulled from the notifications repo's
+                          // unread-count stream. Hides itself
+                          // when the user has no unread items.
+                          _NotificationBellIcon(onTap: onNotificationTap),
                           _iconWithBadge(
                             icon: Icons.favorite_border,
                             badge: '5',
@@ -287,6 +288,78 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Bell-icon variant of [HomeStickyHeader._iconWithBadge] that
+/// reads its badge count from the live notifications repository
+/// instead of a hardcoded string. Hides the badge entirely when
+/// the unread count is zero so the icon doesn't carry a phantom
+/// "0" pill.
+///
+/// Lives at file scope (rather than as another instance method
+/// on the delegate) so the StreamBuilder rebuilds independently
+/// of the rest of the header — a bumped unread count costs one
+/// repaint of the bell, not the whole sticky strip.
+class _NotificationBellIcon extends StatelessWidget {
+  const _NotificationBellIcon({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<int>(
+      stream: NotificationsRepository.instance.unreadCountStream(),
+      builder: (context, snapshot) {
+        final count = snapshot.data ?? 0;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            IconButton(
+              onPressed: onTap,
+              padding: EdgeInsets.zero,
+              constraints:
+                  const BoxConstraints(minWidth: 36, minHeight: 36),
+              icon: const Icon(
+                Icons.notifications_none_rounded,
+                size: 22,
+                color: AppColors.primary,
+              ),
+            ),
+            if (count > 0)
+              Positioned(
+                top: 2,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.background,
+                      width: 1.5,
+                    ),
+                  ),
+                  constraints:
+                      const BoxConstraints(minWidth: 18, minHeight: 18),
+                  child: Text(
+                    count > 99 ? '99+' : '$count',
+                    style: GoogleFonts.manrope(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
