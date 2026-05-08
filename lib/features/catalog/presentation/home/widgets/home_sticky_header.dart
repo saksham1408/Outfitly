@@ -73,38 +73,18 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
                 minHeight: 0,
                 maxHeight: _topRowHeight,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
+                  // Asymmetric padding: 16dp on the left for the
+                  // pill, 6dp on the right so the Profile avatar
+                  // sits flush against the screen edge as
+                  // requested.
+                  padding: const EdgeInsets.fromLTRB(16, 8, 6, 8),
                   child: Row(
                     children: [
-                      // ── Profile (leftmost, near the border) ──
-                      // The unbadged anchor at the very left
-                      // mirrors the "avatar/account at the edge"
-                      // pattern used by Myntra and Nykaa. Sits
-                      // ~16dp off the screen border (parent
-                      // padding) so it reads as anchored without
-                      // looking cramped.
-                      IconButton(
-                        onPressed: onProfileTap,
-                        padding: EdgeInsets.zero,
-                        constraints:
-                            const BoxConstraints(minWidth: 36, minHeight: 36),
-                        icon: const Icon(
-                          Icons.person_outline_rounded,
-                          size: 22,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-
-                      // ── Location pill (middle, flexible) ──
-                      // Premium pill: tap opens the delivery-
-                      // address bottom sheet. Label pulls from
-                      // the selected saved address when
-                      // available, else falls back to the
-                      // detected city / a prompt.
+                      // ── Location pill (leftmost, flexible) ──
+                      // Tap opens the delivery-address bottom
+                      // sheet. Label pulls from the selected
+                      // saved address when available, else falls
+                      // back to the detected city / a prompt.
                       Flexible(child: _DeliveryPillButton()),
 
                       // ── Visual gap before the icon cluster ──
@@ -113,11 +93,11 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
                       const SizedBox(width: 14),
 
                       // ── Right-side action cluster ──
-                      //   Notifications · Wishlist · Cart
-                      // Ordered by user-journey: what's new →
-                      // what you saved → what you're buying.
-                      // Cart at the rightmost is the
-                      // industry-standard thumb-reach slot.
+                      // Order: Notifications · Wishlist · Cart ·
+                      // Profile. Profile is anchored to the
+                      // rightmost border (the parent's right
+                      // padding is intentionally tight at 6dp
+                      // for that "stuck to the edge" feel).
                       _iconWithBadge(
                         icon: Icons.notifications_none_rounded,
                         badge: '3',
@@ -132,6 +112,18 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
                         icon: Icons.shopping_bag_outlined,
                         badge: '2',
                         onTap: onCartTap,
+                      ),
+                      // ── Profile (rightmost, against the border) ──
+                      IconButton(
+                        onPressed: onProfileTap,
+                        padding: EdgeInsets.zero,
+                        constraints:
+                            const BoxConstraints(minWidth: 36, minHeight: 36),
+                        icon: const Icon(
+                          Icons.person_outline_rounded,
+                          size: 22,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ],
                   ),
