@@ -30,6 +30,7 @@ import {
   readServiceAccount,
   sendFcmMessage,
 } from '../_shared/fcm.ts';
+import { recordNotifications } from '../_shared/notifications.ts';
 
 interface WebhookPayload {
   type: 'INSERT' | 'UPDATE' | 'DELETE';
@@ -71,6 +72,30 @@ serve(async (req) => {
   if (plans.length === 0) {
     return new Response('no push for this transition', { status: 200 });
   }
+
+  // In-app feed: one row per push plan. We record these BEFORE
+  // the FCM fan-out so the badge is already bumped by the time
+  // the OS banner arrives. Recording is idempotent on the helper
+  // side (dedupes by user+title) so a duplicate plan won't
+  // double-stamp the inbox.
+  const recordResult = await recordNotifications(
+    supabase,
+    plans.map((p) => ({
+      userId: p.targetUserId,
+      title: p.title,
+      body: p.body,
+      type: 'borrow',
+      route: '/borrow-requests',
+      data: {
+        borrow_request_id: record.id,
+        status: record.status,
+        wardrobe_item_id: record.wardrobe_item_id,
+      },
+    })),
+  );
+  console.log(
+    `[notify-borrow] feed rows inserted=${recordResult.inserted} failed=${recordResult.failed}`,
+  );
 
   const sa = readServiceAccount();
   if (!sa) {
@@ -126,7 +151,11 @@ serve(async (req) => {
     `[notify-borrow] done. delivered=${okCount} failed=${failCount}`,
   );
   return new Response(
-    JSON.stringify({ delivered: okCount, failed: failCount }),
+    JSON.stringify({
+      delivered: okCount,
+      failed: failCount,
+      feed_rows: recordResult.inserted,
+    }),
     { status: 200, headers: { 'Content-Type': 'application/json' } },
   );
 });

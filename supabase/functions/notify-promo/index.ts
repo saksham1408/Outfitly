@@ -30,6 +30,7 @@ import {
   readServiceAccount,
   sendFcmMessage,
 } from '../_shared/fcm.ts';
+import { recordNotifications } from '../_shared/notifications.ts';
 
 interface WebhookPayload {
   type: 'INSERT' | 'UPDATE' | 'DELETE';
@@ -51,6 +52,7 @@ interface PromoRow {
 
 interface DeviceTokenRow {
   token: string;
+  user_id: string;
 }
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -93,6 +95,33 @@ serve(async (req) => {
   const body =
     record.description?.trim() || "Tap to see today's active offers.";
 
+  // Record one in-app notifications row per UNIQUE customer
+  // (de-duped from the device-tokens set — a customer with
+  // multiple devices still gets a single feed row). Run this
+  // BEFORE the FCM fan-out so the bell-icon badge is already
+  // bumped by the time the OS banner arrives — most users tap
+  // the banner and would expect the feed to already reflect it.
+  const uniqueUserIds = Array.from(
+    new Set(tokens.map((t) => t.user_id).filter(Boolean)),
+  );
+  const recordResult = await recordNotifications(
+    supabase,
+    uniqueUserIds.map((uid) => ({
+      userId: uid,
+      title,
+      body,
+      type: 'promo',
+      route: '/offers',
+      data: {
+        promo_id: record.id,
+        promo_code: record.promo_code ?? '',
+      },
+    })),
+  );
+  console.log(
+    `[notify-promo] feed rows inserted=${recordResult.inserted} failed=${recordResult.failed}`,
+  );
+
   console.log(`[notify-promo] dispatching ${tokens.length} push(es): ${title}`);
 
   const sa = readServiceAccount();
@@ -132,15 +161,22 @@ serve(async (req) => {
     `[notify-promo] done. delivered=${okCount} failed=${failCount}`,
   );
   return new Response(
-    JSON.stringify({ delivered: okCount, failed: failCount }),
+    JSON.stringify({
+      delivered: okCount,
+      failed: failCount,
+      feed_rows: recordResult.inserted,
+    }),
     { status: 200, headers: { 'Content-Type': 'application/json' } },
   );
 });
 
 async function fetchAllCustomerTokens(): Promise<DeviceTokenRow[]> {
+  // We pull `user_id` alongside the `token` so the in-app feed
+  // can record one notification per unique customer (the FCM
+  // fan-out still sends one message per device).
   const { data, error } = await supabase
     .from('device_tokens')
-    .select('token')
+    .select('token, user_id')
     .eq('app', 'customer');
   if (error) {
     console.warn('[notify-promo] token fetch failed', error.message);

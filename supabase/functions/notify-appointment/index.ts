@@ -31,6 +31,7 @@ import {
   readServiceAccount,
   sendFcmMessage,
 } from '../_shared/fcm.ts';
+import { recordNotifications } from '../_shared/notifications.ts';
 
 interface WebhookPayload {
   type: 'INSERT' | 'UPDATE' | 'DELETE';
@@ -77,6 +78,31 @@ serve(async (req) => {
       `[notify-appointment] no tokens for ${JSON.stringify(plan.audience)}`,
     );
     return new Response('no tokens', { status: 200 });
+  }
+
+  // In-app feed: only the customer app has a notifications
+  // table today (migration 043 + the bell icon). Tailor-side
+  // pushes still send via FCM but get NO feed row — the Partner
+  // app doesn't have a feed surface to render them yet.
+  let feedInserted = 0;
+  if (plan.audience.app === 'customer' && plan.audience.userId !== null) {
+    const result = await recordNotifications(supabase, [
+      {
+        userId: plan.audience.userId,
+        title: plan.title,
+        body: plan.body,
+        type: 'appointment',
+        route: `/tailor-visit/${record.id}`,
+        data: {
+          appointment_id: record.id,
+          status: record.status,
+        },
+      },
+    ]);
+    feedInserted = result.inserted;
+    console.log(
+      `[notify-appointment] feed rows inserted=${result.inserted} failed=${result.failed}`,
+    );
   }
 
   console.log(
@@ -129,7 +155,11 @@ serve(async (req) => {
     `[notify-appointment] done. delivered=${okCount} failed=${failCount}`,
   );
   return new Response(
-    JSON.stringify({ delivered: okCount, failed: failCount }),
+    JSON.stringify({
+      delivered: okCount,
+      failed: failCount,
+      feed_rows: feedInserted,
+    }),
     { status: 200, headers: { 'Content-Type': 'application/json' } },
   );
 });
