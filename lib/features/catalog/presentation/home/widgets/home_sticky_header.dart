@@ -16,10 +16,6 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
   final VoidCallback onProfileTap;
   final VoidCallback onWishlistTap;
   final VoidCallback onCartTap;
-  /// Push the user into the active-offers dashboard. Discoverable
-  /// without needing the FCM banner — keeps the surface reachable
-  /// for users who dismissed (or never saw) the sale notification.
-  final VoidCallback onOffersTap;
   final ValueChanged<int>? onTabTap;
   final List<String> tabLabels;
 
@@ -30,7 +26,6 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
     required this.onProfileTap,
     required this.onWishlistTap,
     required this.onCartTap,
-    required this.onOffersTap,
     this.onTabTap,
     this.tabLabels = const ['MEN', 'WOMEN', 'KIDS'],
   });
@@ -90,19 +85,13 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
                       // to the detected city / a prompt.
                       Flexible(child: _DeliveryPillButton()),
 
-                      // Right-side actions
+                      // Right-side actions. The dedicated "offers"
+                      // icon used to live here; with the hero
+                      // promo carousel surfacing every live sale
+                      // directly under this AppBar, the
+                      // standalone deep-link became redundant and
+                      // was removed.
                       const SizedBox(width: 8),
-                      // Offers (% tag) — sits leftmost in the
-                      // action row so the deal-hunting beat is
-                      // the first icon the user's thumb reaches.
-                      // Static "%" badge for now; future iteration
-                      // can populate it dynamically from the live
-                      // offer count.
-                      _iconWithBadge(
-                        icon: Icons.local_offer_outlined,
-                        badge: '%',
-                        onTap: onOffersTap,
-                      ),
                       _iconWithBadge(
                         icon: Icons.notifications_none_rounded,
                         badge: '3',
