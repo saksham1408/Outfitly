@@ -74,56 +74,62 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
                 maxHeight: _topRowHeight,
                 child: Padding(
                   // Asymmetric padding: 16dp on the left for the
-                  // pill, 6dp on the right so the Profile avatar
-                  // sits flush against the screen edge as
-                  // requested.
+                  // pill, 6dp on the right so the rightmost
+                  // (Profile) icon sits flush against the screen
+                  // edge as requested.
                   padding: const EdgeInsets.fromLTRB(16, 8, 6, 8),
+                  // `spaceBetween` is the layout that gives us
+                  // exactly what we want: pill anchored to the
+                  // left, icon cluster anchored to the right,
+                  // and ALL the leftover horizontal space turned
+                  // into a single visual gap between them. As
+                  // the pill widens (e.g. a long saved-address
+                  // label), the gap automatically narrows; if
+                  // the pill ever needs to shrink, the inner
+                  // Flexible lets it do so without overflowing.
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // ── Location pill (leftmost, flexible) ──
-                      // Tap opens the delivery-address bottom
-                      // sheet. Label pulls from the selected
-                      // saved address when available, else falls
-                      // back to the detected city / a prompt.
+                      // ── Location pill (left edge, flexible) ──
                       Flexible(child: _DeliveryPillButton()),
 
-                      // ── Visual gap before the icon cluster ──
-                      // Explicit breathing room so the pill
-                      // doesn't kiss the badged icons.
-                      const SizedBox(width: 14),
-
-                      // ── Right-side action cluster ──
-                      // Order: Notifications · Wishlist · Cart ·
-                      // Profile. Profile is anchored to the
-                      // rightmost border (the parent's right
-                      // padding is intentionally tight at 6dp
-                      // for that "stuck to the edge" feel).
-                      _iconWithBadge(
-                        icon: Icons.notifications_none_rounded,
-                        badge: '3',
-                        onTap: onNotificationTap,
-                      ),
-                      _iconWithBadge(
-                        icon: Icons.favorite_border,
-                        badge: '5',
-                        onTap: onWishlistTap,
-                      ),
-                      _iconWithBadge(
-                        icon: Icons.shopping_bag_outlined,
-                        badge: '2',
-                        onTap: onCartTap,
-                      ),
-                      // ── Profile (rightmost, against the border) ──
-                      IconButton(
-                        onPressed: onProfileTap,
-                        padding: EdgeInsets.zero,
-                        constraints:
-                            const BoxConstraints(minWidth: 36, minHeight: 36),
-                        icon: const Icon(
-                          Icons.person_outline_rounded,
-                          size: 22,
-                          color: AppColors.primary,
-                        ),
+                      // ── Action cluster (right edge) ──
+                      // mainAxisSize.min so the inner row hugs
+                      // its children — keeps the cluster tight
+                      // against the right border, regardless of
+                      // how wide the outer row is.
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _iconWithBadge(
+                            icon: Icons.notifications_none_rounded,
+                            badge: '3',
+                            onTap: onNotificationTap,
+                          ),
+                          _iconWithBadge(
+                            icon: Icons.favorite_border,
+                            badge: '5',
+                            onTap: onWishlistTap,
+                          ),
+                          _iconWithBadge(
+                            icon: Icons.shopping_bag_outlined,
+                            badge: '2',
+                            onTap: onCartTap,
+                          ),
+                          IconButton(
+                            onPressed: onProfileTap,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 36,
+                              minHeight: 36,
+                            ),
+                            icon: const Icon(
+                              Icons.person_outline_rounded,
+                              size: 22,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
