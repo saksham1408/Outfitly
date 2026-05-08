@@ -2,22 +2,28 @@ import 'package:flutter/foundation.dart';
 
 /// Slide-design discriminator for the Home hero carousel.
 ///
-/// Maps to the `offer_type` column on `public.promo_offers`
-/// (added in migration 041). Two variants today:
-///   * [sale]      — flash-sale slide: banner image + countdown.
-///   * [bankOffer] — premium credit-card-style slide: metallic
-///                   gradient + copy-code CTA.
+/// Maps to the `offer_type` column on `public.promo_offers`.
+/// Three variants today:
+///   * [sale]         — flash-sale slide: banner image + countdown.
+///   * [bankOffer]    — premium credit-card-style slide: metallic
+///                       gradient + copy-code CTA.
+///   * [categorySale] — softer pastel slide scoped to a section
+///                       (Sherwanis, Sarees, Kidswear, ...) — added
+///                       in migration 042.
 ///
 /// Default to [sale] for any unknown / missing string so an
 /// in-progress schema change can't crash the carousel.
 enum OfferType {
   sale,
-  bankOffer;
+  bankOffer,
+  categorySale;
 
   static OfferType fromDb(String? raw) {
     switch (raw) {
       case 'bank_offer':
         return OfferType.bankOffer;
+      case 'category_sale':
+        return OfferType.categorySale;
       case 'sale':
       default:
         return OfferType.sale;
@@ -30,6 +36,8 @@ enum OfferType {
         return 'sale';
       case OfferType.bankOffer:
         return 'bank_offer';
+      case OfferType.categorySale:
+        return 'category_sale';
     }
   }
 }
@@ -56,6 +64,7 @@ class PromoOffer {
     this.targetRoute,
     this.promoCode,
     this.bankName,
+    this.categoryLabel,
   });
 
   final String id;
@@ -101,6 +110,12 @@ class PromoOffer {
   /// bank-offer rows.
   final String? bankName;
 
+  /// Section label rendered prominently on category-sale slides
+  /// ("Wedding Wear", "Sarees", ...). Read-only consumed by
+  /// [OfferType.categorySale]; ignored on other offer types
+  /// even if a value happens to be set.
+  final String? categoryLabel;
+
   /// True iff the offer is published AND not yet expired. The
   /// dashboard renders only live offers; an expired-but-active
   /// row would otherwise tease a deal the customer can't claim.
@@ -144,6 +159,10 @@ class PromoOffer {
       bankName: (map['bank_name'] as String?)?.trim().isEmpty ?? true
           ? null
           : (map['bank_name'] as String).trim(),
+      categoryLabel:
+          (map['category_label'] as String?)?.trim().isEmpty ?? true
+              ? null
+              : (map['category_label'] as String).trim(),
     );
   }
 }

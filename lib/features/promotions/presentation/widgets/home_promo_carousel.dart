@@ -93,6 +93,8 @@ class _HomePromoCarouselState extends State<HomePromoCarousel> {
                   switch (offer.offerType) {
                     case OfferType.bankOffer:
                       return _BankOfferSlide(offer: offer);
+                    case OfferType.categorySale:
+                      return _CategorySaleSlide(offer: offer);
                     case OfferType.sale:
                       return _FlashSaleSlide(offer: offer);
                   }
@@ -479,7 +481,269 @@ class _BankOfferSlideState extends State<_BankOfferSlide> {
 }
 
 // ────────────────────────────────────────────────────────────
-// Sub-widgets
+// Design C — Category Sale slide (section-scoped)
+// ────────────────────────────────────────────────────────────
+
+/// Section-scoped sale slide. Visually distinct from the dark
+/// flash-sale and the metallic bank-offer cards: a soft pastel
+/// gradient picked deterministically from the category name, an
+/// oversized icon block, and the section name set in italic
+/// display typography. Reads as a curated browse-prompt rather
+/// than urgency-driven flash sale.
+class _CategorySaleSlide extends StatelessWidget {
+  const _CategorySaleSlide({required this.offer});
+
+  final PromoOffer offer;
+
+  /// Picks a palette + icon based on the category label so the
+  /// same section always paints the same colours across reloads.
+  /// Wedding Wear = warm terracotta, Sarees = soft sage, etc.
+  ({Color start, Color end, Color accent, IconData icon}) get _theme {
+    final label = (offer.categoryLabel ?? offer.title).toLowerCase();
+    if (label.contains('wedding') ||
+        label.contains('bridal') ||
+        label.contains('lehenga')) {
+      return (
+        start: const Color(0xFFF7E2D2),
+        end: const Color(0xFFE8B89A),
+        accent: const Color(0xFF7A2E1F),
+        icon: Icons.diamond_outlined,
+      );
+    }
+    if (label.contains('saree')) {
+      return (
+        start: const Color(0xFFE7EFE0),
+        end: const Color(0xFFB8CFA3),
+        accent: const Color(0xFF2F4A2A),
+        icon: Icons.spa_outlined,
+      );
+    }
+    if (label.contains('indo') || label.contains('western')) {
+      return (
+        start: const Color(0xFFE6E5F0),
+        end: const Color(0xFFB8B5D5),
+        accent: const Color(0xFF2F2A57),
+        icon: Icons.checkroom_rounded,
+      );
+    }
+    if (label.contains('kid') || label.contains('child')) {
+      return (
+        start: const Color(0xFFFCEAD7),
+        end: const Color(0xFFFAC79A),
+        accent: const Color(0xFF8B500A),
+        icon: Icons.child_care_outlined,
+      );
+    }
+    if (label.contains('men') || label.contains('kurta')) {
+      return (
+        start: const Color(0xFFE3E9F0),
+        end: const Color(0xFFA9B9CC),
+        accent: const Color(0xFF1F3A57),
+        icon: Icons.person_outline_rounded,
+      );
+    }
+    // Default — cream + brand wine accent, fits anything.
+    return (
+      start: const Color(0xFFFBF3E8),
+      end: const Color(0xFFE9D6BA),
+      accent: const Color(0xFF6B1F2C),
+      icon: Icons.local_offer_outlined,
+    );
+  }
+
+  void _onTap(BuildContext context) {
+    final route = offer.targetRoute;
+    if (route == null || route.isEmpty) return;
+    context.push(route == '/offers' ? '/catalog' : route);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = _theme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _onTap(context),
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [theme.start, theme.end],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: theme.accent.withAlpha(40),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Stack(
+              children: [
+                // Soft circular accent — top-right, very light, gives
+                // the airy "lookbook editorial" feel without a busy
+                // pattern asset.
+                Positioned(
+                  top: -30,
+                  right: -30,
+                  child: Container(
+                    width: 130,
+                    height: 130,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withAlpha(60),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Icon block — oversized, sits in a soft
+                      // accent-coloured square so the eye lands
+                      // here first.
+                      Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          color: theme.accent.withAlpha(35),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        alignment: Alignment.center,
+                        child: Icon(
+                          theme.icon,
+                          color: theme.accent,
+                          size: 32,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: theme.accent.withAlpha(35),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                'CURATED EDIT',
+                                style: GoogleFonts.manrope(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.4,
+                                  color: theme.accent,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              offer.categoryLabel ?? offer.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.newsreader(
+                                fontSize: 22,
+                                fontStyle: FontStyle.italic,
+                                fontWeight: FontWeight.w600,
+                                color: theme.accent,
+                                height: 1.05,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Up to ${offer.discountPercentage}% off',
+                              style: GoogleFonts.manrope(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: theme.accent.withAlpha(220),
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _CategoryShopButton(
+                              accent: theme.accent,
+                              label: 'Shop Now',
+                              onTap: () => _onTap(context),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryShopButton extends StatelessWidget {
+  const _CategoryShopButton({
+    required this.accent,
+    required this.label,
+    required this.onTap,
+  });
+
+  final Color accent;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: accent,
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Padding(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.manrope(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: 0.4,
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(
+                Icons.arrow_forward_rounded,
+                size: 13,
+                color: Colors.white,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// Sub-widgets (shared)
 // ────────────────────────────────────────────────────────────
 
 /// Live countdown badge for flash-sale slides — ticks once a
