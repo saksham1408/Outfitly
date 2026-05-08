@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyDoMqKlnoIZ6Vt9F2bFk7M6WQDjH4-dQCc</string>
+	<key>GCM_SENDER_ID</key>
+	<string>1028710749210</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.outfitly.outfitly</string>
+	<key>PROJECT_ID</key>
+	<string>outfitly-bccd3</string>
+	<key>STORAGE_BUCKET</key>
+	<string>outfitly-bccd3.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:1028710749210:ios:36d79ba8b73a7df3b12da3</string>
+	<key>DATABASE_URL</key>
+	<string>https://outfitly-bccd3-default-rtdb.firebaseio.com</string>
+</dict>
+</plist>

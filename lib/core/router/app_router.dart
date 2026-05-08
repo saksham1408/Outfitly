@@ -60,6 +60,8 @@ import '../../features/digital_wardrobe/presentation/style_anchor_screen.dart';
 import '../../features/social_wardrobe/presentation/social_dashboard_screen.dart';
 import '../../features/social_wardrobe/presentation/friend_closet_screen.dart';
 import '../../features/social_wardrobe/presentation/borrow_requests_screen.dart';
+import '../../features/custom_stitching/presentation/book_fabric_pickup_screen.dart';
+import '../../features/custom_stitching/presentation/custom_stitching_dashboard_screen.dart';
 
 /// Central route configuration for the app.
 abstract final class AppRouter {
@@ -531,6 +533,27 @@ abstract final class AppRouter {
         builder: (context, state) => ComboResultsScreen(
           draft: state.extra as ComboDraft,
         ),
+      ),
+
+      // ── Stitch My Fabric ──
+      // Standalone service line: customer already owns unstitched
+      // fabric, books a tailor home-visit for measurements +
+      // pickup. The dashboard reads ONLY `custom_stitch_orders`
+      // rows so this tracker stays isolated from the standard
+      // /orders screen. The booking screen INSERTs a new row and
+      // pops back to the dashboard, where the
+      // CustomStitchingRepository's ValueNotifier surfaces the
+      // new card without a refetch.
+      GoRoute(
+        path: '/custom-stitching/dashboard',
+        name: 'customStitchingDashboard',
+        builder: (context, state) =>
+            const CustomStitchingDashboardScreen(),
+      ),
+      GoRoute(
+        path: '/custom-stitching/book',
+        name: 'customStitchingBook',
+        builder: (context, state) => const BookFabricPickupScreen(),
       ),
     ],
   );

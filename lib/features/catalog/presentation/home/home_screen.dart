@@ -215,12 +215,21 @@ class _HomeScreenState extends State<HomeScreen>
           // Hero banner
           SliverToBoxAdapter(child: _buildHeroBanner()),
 
-          // ── Family & Combos premium entry ──
-          // Anchored just under the hero so it's the first thing
-          // the user sees once they're past the marketing strip.
-          // Routes into the Couple-vs-Family fork at
-          // /combo-selection.
+          // ── Stitch My Fabric premium entry ──
+          // Sits directly under the hero strip so a customer who
+          // already owns unstitched fabric sees the doorstep-
+          // tailor service before scrolling further. Routes into
+          // the isolated CustomStitchingDashboardScreen at
+          // /custom-stitching/dashboard.
           const SliverToBoxAdapter(child: SizedBox(height: 20)),
+          SliverToBoxAdapter(child: _buildStitchMyFabricCta()),
+
+          // ── Family & Combos premium entry ──
+          // Anchored just under the Stitch My Fabric card so the
+          // two flagship CTAs read as a stacked pair before the
+          // long-tail content below kicks in. Routes into the
+          // Couple-vs-Family fork at /combo-selection.
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
           SliverToBoxAdapter(child: _buildFamilyCombosCta()),
 
           const SliverToBoxAdapter(child: SizedBox(height: 80)),
@@ -266,6 +275,137 @@ class _HomeScreenState extends State<HomeScreen>
       // No persistent selection on Home — each tap navigates away to the PLP.
       selectedId: null,
       onTap: _onSubCategoryTapped,
+    );
+  }
+
+  /// Premium "Stitch My Fabric" CTA — the marquee surface for
+  /// the isolated doorstep-tailor service line. Anchored
+  /// directly beneath the hero strip so a customer who already
+  /// owns unstitched fabric never has to hunt for the entry
+  /// point. Sewing-machine icon + measuring-tape-styled palette
+  /// distinguish it from the Family & Combos card stacked below.
+  /// Tap routes to /custom-stitching/dashboard, which is its own
+  /// tracker (never bleeds into /orders).
+  Widget _buildStitchMyFabricCta() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => context.push('/custom-stitching/dashboard'),
+          borderRadius: BorderRadius.circular(20),
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF8B500A),
+                  Color(0xFF17362E),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withAlpha(60),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 20, 18, 20),
+            child: Row(
+              children: [
+                // Icon block — slightly oversized vs the Combos
+                // card so the Stitch CTA reads as the louder of
+                // the two stacked entries.
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(38),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.content_cut_rounded,
+                    color: Colors.white,
+                    size: 34,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              'Have your own fabric?',
+                              style: GoogleFonts.newsreader(
+                                fontSize: 18,
+                                fontStyle: FontStyle.italic,
+                                color: Colors.white,
+                                height: 1.1,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color:
+                                  AppColors.accentContainer.withAlpha(80),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              'NEW',
+                              style: GoogleFonts.manrope(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.8,
+                                color: AppColors.accentContainer,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'We\'ll stitch it.',
+                        style: GoogleFonts.manrope(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Book Doorstep Tailor & Fabric Pickup',
+                        style: GoogleFonts.manrope(
+                          fontSize: 11.5,
+                          color: Colors.white.withAlpha(210),
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: Colors.white.withAlpha(180),
+                  size: 16,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
