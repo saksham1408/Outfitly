@@ -338,7 +338,18 @@ class _BagSummary extends StatelessWidget {
                 SizedBox(
                   height: 50,
                   child: ElevatedButton.icon(
-                    onPressed: () => context.push('/checkout'),
+                    // CHECKOUT routes the customer into the
+                    // Measurements decision flow first — the
+                    // catalog is bespoke-tailored, so we need
+                    // measurements (AI scan / manual entry /
+                    // home tailor visit) before we can hand the
+                    // order to the atelier. The decision screen
+                    // is null-payload-safe, which is what we
+                    // pass here because the bag is a multi-item
+                    // checkout (the legacy single-item express
+                    // path is for the customisation wizard).
+                    onPressed: () =>
+                        context.push('/measurements/decision'),
                     icon: const Icon(Icons.arrow_forward_rounded, size: 18),
                     label: Text(
                       'CHECKOUT',
