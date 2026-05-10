@@ -14,23 +14,34 @@ import '../../models/promo_offer.dart';
 /// Premium auto-sliding promo carousel anchored at the top of
 /// the Home screen. Mirrors the Myntra hero slot in *behaviour*
 /// (auto-rotate, pagination dots, peek-the-next-slide) but with
-/// two distinct in-house slide designs:
+/// three distinct in-house slide designs:
 ///
-///   • [_FlashSaleSlide]  — image-backed sale slide with a live
-///                           countdown + "Shop Now" pill.
-///   • [_BankOfferSlide]  — metallic credit-card-style slide
-///                           with a Copy Code button and a
-///                           subtle bank-chip watermark.
+///   • [_FlashSaleSlide]    — image-backed sale slide with a
+///                             live countdown + "Shop Now" pill.
+///   • [_BankOfferSlide]    — metallic credit-card-style slide
+///                             with a Copy Code button and a
+///                             subtle bank-chip watermark.
+///   • [_CategorySaleSlide] — soft pastel section-scoped slide.
 ///
 /// Data source: live `promo_offers` rows via
 /// [PromotionsRepository.watchActive] — same stream the
 /// `/offers` dashboard uses, so a row published by the marketing
 /// team appears here within a second of `is_active` flipping
-/// true. The carousel hides itself entirely when the live
-/// offer set is empty so it never reserves dead space on the
-/// home screen.
+/// true.
+///
+/// Section-aware filtering: pass [activeGender] (`'men'` /
+/// `'women'` / `'kids'`) so the carousel surfaces only offers
+/// targeted at that section (plus sitewide ones). When
+/// [activeGender] is `null` (no gender resolved yet), every
+/// offer is shown — that's the cold-launch behaviour. The
+/// carousel hides itself entirely when the filtered set is
+/// empty so it never reserves dead space.
 class HomePromoCarousel extends StatefulWidget {
-  const HomePromoCarousel({super.key});
+  const HomePromoCarousel({super.key, this.activeGender});
+
+  /// Lowercased gender of the currently-selected home tab —
+  /// `'men'`, `'women'`, `'kids'`. `null` until resolved.
+  final String? activeGender;
 
   @override
   State<HomePromoCarousel> createState() => _HomePromoCarouselState();
@@ -42,11 +53,29 @@ class _HomePromoCarouselState extends State<HomePromoCarousel> {
   int _currentPage = 0;
 
   @override
+  void didUpdateWidget(covariant HomePromoCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reset the active page when the gender filter flips so the
+    // dot indicator never points past the end of the new
+    // (potentially shorter) list and the carousel re-anchors
+    // on the first slide of the section.
+    if (oldWidget.activeGender != widget.activeGender) {
+      _currentPage = 0;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<PromoOffer>>(
       stream: _repo.watchActive(),
       builder: (context, snapshot) {
-        final offers = snapshot.data ?? const <PromoOffer>[];
+        final all = snapshot.data ?? const <PromoOffer>[];
+        // Apply the gender filter — the model's helper handles
+        // both nullable activeGender (cold launch) and
+        // sitewide / null targetGender rows.
+        final offers = all
+            .where((o) => o.matchesGender(widget.activeGender))
+            .toList(growable: false);
 
         // Empty state — collapse to zero height so the rest of
         // the home feed slides up. Sidesteps the "ugly hardcoded

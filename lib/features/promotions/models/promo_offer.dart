@@ -65,6 +65,7 @@ class PromoOffer {
     this.promoCode,
     this.bankName,
     this.categoryLabel,
+    this.targetGender,
   });
 
   final String id;
@@ -116,6 +117,35 @@ class PromoOffer {
   /// even if a value happens to be set.
   final String? categoryLabel;
 
+  /// Section-targeting discriminator on the Home hero carousel:
+  ///   'men'   — only shown on the MEN tab
+  ///   'women' — only shown on the WOMEN tab
+  ///   'kids'  — only shown on the KIDS tab
+  ///   'all'   — sitewide
+  ///   null    — same as 'all' (forward-compat / unset rows)
+  ///
+  /// The carousel filters using
+  /// [matchesGender] so the same offer can ride alongside
+  /// gender-specific ones without duplication.
+  final String? targetGender;
+
+  /// True if this offer should appear on the home carousel for
+  /// a customer currently on the [activeGender] tab. Used by
+  /// `HomePromoCarousel` to filter the live offer list.
+  ///
+  /// Conventions:
+  ///   * [activeGender] is `null` when the tab system hasn't
+  ///     resolved yet (e.g. cold-launch loading state) — in
+  ///     that case we show every offer rather than blanking
+  ///     the carousel.
+  ///   * [targetGender] of `'all'` or `null` always matches.
+  bool matchesGender(String? activeGender) {
+    if (activeGender == null) return true;
+    final g = targetGender;
+    if (g == null || g == 'all') return true;
+    return g == activeGender;
+  }
+
   /// True iff the offer is published AND not yet expired. The
   /// dashboard renders only live offers; an expired-but-active
   /// row would otherwise tease a deal the customer can't claim.
@@ -163,6 +193,10 @@ class PromoOffer {
           (map['category_label'] as String?)?.trim().isEmpty ?? true
               ? null
               : (map['category_label'] as String).trim(),
+      targetGender:
+          (map['target_gender'] as String?)?.trim().isEmpty ?? true
+              ? null
+              : (map['target_gender'] as String).trim().toLowerCase(),
     );
   }
 }

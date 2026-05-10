@@ -209,9 +209,16 @@ class _HomeScreenState extends State<HomeScreen>
           // Auto-sliding marketing strip directly under the
           // sticky AppBar. Renders flash-sale slides + uniquely
           // designed bank-offer slides (metallic gradient with a
-          // copy-code CTA). Hides itself when there are no live
-          // offers, so it never reserves dead space.
-          const SliverToBoxAdapter(child: HomePromoCarousel()),
+          // copy-code CTA) + section-scoped category-sale
+          // slides. Filtered by the active tab's gender so a
+          // customer on KIDS only sees kids + sitewide offers,
+          // never bridal lehengas. Hides itself when the
+          // filtered set is empty.
+          SliverToBoxAdapter(
+            child: HomePromoCarousel(
+              activeGender: _activeCategory?.name.toLowerCase(),
+            ),
+          ),
 
           // Subcategory row — shown once user taps a tab
           if (_userTappedTab) ...[
