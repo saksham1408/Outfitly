@@ -11,7 +11,9 @@ import 'core/network/supabase_client.dart';
 import 'core/push/push_notification_service.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'features/checkout/data/cart_repository.dart';
 import 'features/wardrobe_calendar/data/notification_service.dart';
+import 'features/wishlist/data/wishlist_repository.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -69,6 +71,15 @@ void main() async {
   // notifyListeners() repaints with the converted value. Awaiting here
   // would block boot on a slow network for no UX benefit.
   unawaited(Money.instance.init());
+
+  // Cart + wishlist hydration. Same fire-and-forget pattern: the home
+  // AppBar's bag/heart badges bind to these repositories' count
+  // notifiers, so a slow first fetch just means the badges show 0
+  // for a frame or two before populating. The user can interact with
+  // the rest of the app immediately. RLS ensures the queries return
+  // empty if no session yet.
+  unawaited(CartRepository.instance.ensureLoaded());
+  unawaited(WishlistRepository.instance.ensureLoaded());
 
   // Opt-in auto-test for the notification pipeline. Enabled with
   //   flutter run --dart-define=NOTIF_AUTO_TEST=true

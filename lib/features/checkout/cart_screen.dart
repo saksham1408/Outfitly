@@ -7,6 +7,7 @@ import '../../core/network/supabase_client.dart';
 import '../../core/theme/theme.dart';
 import '../measurements/data/tailor_appointment_service.dart';
 import 'models/order_payload.dart';
+import 'presentation/multi_item_bag_screen.dart';
 
 class CartScreen extends StatefulWidget {
   final OrderPayload? payload;
@@ -105,11 +106,14 @@ class _CartScreenState extends State<CartScreen> {
   Widget build(BuildContext context) {
     final payload = widget.payload;
 
+    // No payload means the user reached `/cart` from a generic
+    // entry point — the home AppBar's bag icon, the PDP "Go to
+    // Bag" button, or the empty-bag's "Browse" CTA. We render
+    // the persistent multi-item bag for those, while the
+    // payload-driven express checkout below stays the entry
+    // point for the customisation wizard.
     if (payload == null) {
-      return Scaffold(
-        appBar: AppBar(),
-        body: const Center(child: Text('No items in cart')),
-      );
+      return const MultiItemBagScreen();
     }
 
     return Scaffold(

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -6,7 +7,9 @@ import '../../../../../core/theme/theme.dart';
 import '../../../../addresses/data/address_service.dart';
 import '../../../../addresses/models/saved_address.dart';
 import '../../../../addresses/presentation/delivery_address_sheet.dart';
+import '../../../../checkout/data/cart_repository.dart';
 import '../../../../notifications/data/notifications_repository.dart';
+import '../../../../wishlist/data/wishlist_repository.dart';
 
 /// Myntra-style sticky header for the home feed.
 /// Contains: Top row (location + icons) + Search bar + Gender tabs.
@@ -107,14 +110,20 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
                           // unread-count stream. Hides itself
                           // when the user has no unread items.
                           _NotificationBellIcon(onTap: onNotificationTap),
-                          _iconWithBadge(
+                          // Wishlist heart — badge bound to the
+                          // WishlistRepository's count notifier.
+                          // Hides itself when the wishlist is
+                          // empty.
+                          _ReactiveCountIcon(
                             icon: Icons.favorite_border,
-                            badge: '5',
+                            count: WishlistRepository.instance.count,
                             onTap: onWishlistTap,
                           ),
-                          _iconWithBadge(
+                          // Bag icon — badge bound to the
+                          // CartRepository's count notifier.
+                          _ReactiveCountIcon(
                             icon: Icons.shopping_bag_outlined,
-                            badge: '2',
+                            count: CartRepository.instance.count,
                             onTap: onCartTap,
                           ),
                           IconButton(
@@ -248,46 +257,82 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
     );
   }
 
-  Widget _iconWithBadge({
-    required IconData icon,
-    required String badge,
-    required VoidCallback onTap,
-  }) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        IconButton(
-          onPressed: onTap,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-          icon: Icon(icon, size: 22, color: AppColors.primary),
-        ),
-        Positioned(
-          top: 2,
-          right: 0,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-            decoration: BoxDecoration(
-              color: AppColors.accent,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: AppColors.background,
-                width: 1.5,
-              ),
+  // Note: the legacy `_iconWithBadge` helper used to live here for
+  // the static-count badges. It was removed once every consumer
+  // (notifications / wishlist / cart) moved to live counts via
+  // `_NotificationBellIcon` and `_ReactiveCountIcon`. If a future
+  // surface needs a static-count badge again, prefer subclassing
+  // `_ReactiveCountIcon` with a fixed `ValueNotifier<int>` so the
+  // styling stays consistent.
+}
+
+/// Generic reactive variant of [HomeStickyHeader._iconWithBadge].
+///
+/// Used by the wishlist heart + the cart bag — both bind to a
+/// `ValueListenable<int>` exposed by their respective
+/// repositories. Hides the badge entirely when count is zero
+/// (so the icon doesn't carry a phantom "0"), caps the label
+/// at "99+" past three digits, and otherwise mirrors the same
+/// pill styling the static badges used to have.
+class _ReactiveCountIcon extends StatelessWidget {
+  const _ReactiveCountIcon({
+    required this.icon,
+    required this.count,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final ValueListenable<int> count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<int>(
+      valueListenable: count,
+      builder: (context, value, _) {
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            IconButton(
+              onPressed: onTap,
+              padding: EdgeInsets.zero,
+              constraints:
+                  const BoxConstraints(minWidth: 36, minHeight: 36),
+              icon: Icon(icon, size: 22, color: AppColors.primary),
             ),
-            constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-            child: Text(
-              badge,
-              style: GoogleFonts.manrope(
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
+            if (value > 0)
+              Positioned(
+                top: 2,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.background,
+                      width: 1.5,
+                    ),
+                  ),
+                  constraints:
+                      const BoxConstraints(minWidth: 18, minHeight: 18),
+                  child: Text(
+                    value > 99 ? '99+' : '$value',
+                    style: GoogleFonts.manrope(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 }
