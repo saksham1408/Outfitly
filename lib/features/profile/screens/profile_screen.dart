@@ -48,6 +48,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  /// Push the Edit Profile screen and refresh the local row when
+  /// the user comes back. EditProfileScreen pops with `true`
+  /// after a successful save; we re-pull on truthy so the header
+  /// picks up the new name / avatar / phone without a full
+  /// app restart.
+  Future<void> _openEditProfile() async {
+    final saved = await context.push<bool>('/profile/edit');
+    if (saved == true) {
+      await _loadProfile();
+    }
+  }
+
   /// Open the country picker and, if the user picks something new,
   /// (a) persist it to their profile row, and (b) flip Money's
   /// override so prices across the app repaint instantly.
@@ -222,7 +234,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Icons.edit_outlined,
                           'Edit Profile',
                           'Update your name, phone, location',
-                          onTap: () {},
+                          onTap: _openEditProfile,
                         ),
                         _menuTile(
                           Icons.straighten_outlined,

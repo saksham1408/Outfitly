@@ -48,6 +48,7 @@ import '../../features/wardrobe_calendar/presentation/outfit_planner_screen.dart
 import '../../features/wardrobe_calendar/presentation/add_event_screen.dart';
 import '../../features/wardrobe_calendar/domain/planner_event.dart';
 import '../../features/shell/main_shell.dart';
+import '../../features/profile/screens/edit_profile_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
 import '../../features/search/screens/search_screen.dart';
 import '../../features/wishlist/screens/wishlist_screen.dart';
@@ -149,6 +150,17 @@ abstract final class AppRouter {
         path: '/profile',
         name: 'profile',
         builder: (context, state) => const ProfileScreen(),
+        routes: [
+          // Sub-route on /profile so the back gesture lands the
+          // user on the Profile screen they came from. Pops with
+          // `true` on save so the parent re-pulls the row and
+          // refreshes its header.
+          GoRoute(
+            path: 'edit',
+            name: 'editProfile',
+            builder: (context, state) => const EditProfileScreen(),
+          ),
+        ],
       ),
       GoRoute(
         path: '/search',
