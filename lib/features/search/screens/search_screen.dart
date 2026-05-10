@@ -12,7 +12,17 @@ class SearchScreen extends StatefulWidget {
   /// When true, the back arrow is shown (screen was pushed).
   final bool canPop;
 
-  const SearchScreen({super.key, this.canPop = false});
+  /// Pre-filled query, e.g. from voice search. When non-null +
+  /// non-empty, the screen seeds the text field with this value
+  /// and runs the search immediately on mount — so the user
+  /// lands on results, not the idle state.
+  final String? initialQuery;
+
+  const SearchScreen({
+    super.key,
+    this.canPop = false,
+    this.initialQuery,
+  });
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -46,10 +56,24 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
-    // Auto-focus when screen opens
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focusNode.requestFocus();
-    });
+    // Seed the text field if we were pushed with an initial
+    // query (e.g. from voice search) and run the search
+    // immediately so the user lands on results.
+    final seed = widget.initialQuery?.trim();
+    if (seed != null && seed.isNotEmpty) {
+      _searchController.text = seed;
+      _commitRecent(seed);
+      // Defer the search a frame so setState during initState
+      // doesn't fire while the framework is still building.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _search(seed);
+      });
+    } else {
+      // Auto-focus when screen opens (idle entry).
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _focusNode.requestFocus();
+      });
+    }
   }
 
   @override

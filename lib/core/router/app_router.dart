@@ -165,7 +165,15 @@ abstract final class AppRouter {
       GoRoute(
         path: '/search',
         name: 'search',
-        builder: (context, state) => const SearchScreen(canPop: true),
+        // `?q=…` is set by the voice-search flow on the home
+        // pill so the user lands directly on results for the
+        // transcribed phrase. Idle entries still work — the
+        // SearchScreen treats a null/empty initialQuery as
+        // "auto-focus and wait for typing".
+        builder: (context, state) => SearchScreen(
+          canPop: true,
+          initialQuery: state.uri.queryParameters['q'],
+        ),
       ),
       GoRoute(
         path: '/catalog',

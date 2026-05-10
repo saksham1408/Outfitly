@@ -85,6 +85,15 @@ dependencies:
   carousel_slider: ^5.0.0
   smooth_page_indicator: ^1.2.0+3
 
+  # ── Voice search ──
+  # Drives the microphone button on the home search pill.
+  # speech_to_text wraps SFSpeechRecognizer (iOS) and
+  # SpeechRecognizer (Android) so we can transcribe in-app
+  # without rolling our own audio pipeline. iOS needs both
+  # NSMicrophoneUsageDescription AND NSSpeechRecognitionUsageDescription
+  # in Info.plist; Android needs RECORD_AUDIO.
+  speech_to_text: ^7.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

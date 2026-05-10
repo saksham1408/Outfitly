@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../../core/location/location_service.dart';
@@ -9,6 +10,7 @@ import '../../../../addresses/models/saved_address.dart';
 import '../../../../addresses/presentation/delivery_address_sheet.dart';
 import '../../../../checkout/data/cart_repository.dart';
 import '../../../../notifications/data/notifications_repository.dart';
+import '../../../../search/presentation/voice_search_sheet.dart';
 import '../../../../wishlist/data/wishlist_repository.dart';
 
 /// Myntra-style sticky header for the home feed.
@@ -180,8 +182,23 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
                         ),
                       ),
                     ),
+                    // Mic — opens the voice-search sheet. The
+                    // sheet wraps speech_to_text and pops with
+                    // the trimmed transcript on success; we
+                    // forward it as a `?q=…` query param so
+                    // /search lands directly on results.
                     IconButton(
-                      onPressed: () {},
+                      onPressed: () async {
+                        final transcript =
+                            await showVoiceSearchSheet(context);
+                        if (transcript == null || transcript.isEmpty) {
+                          return;
+                        }
+                        if (!context.mounted) return;
+                        context.push(
+                          '/search?q=${Uri.encodeQueryComponent(transcript)}',
+                        );
+                      },
                       icon: const Icon(
                         Icons.mic_none_rounded,
                         size: 20,
@@ -193,8 +210,15 @@ class HomeStickyHeader extends SliverPersistentHeaderDelegate {
                         minHeight: 32,
                       ),
                     ),
+                    // Camera — visual search via the existing
+                    // AI Look Recreator (Gemini Vision). The
+                    // recreator already takes a photo, analyses
+                    // it, and routes the user into a designed
+                    // result, which is the right destination
+                    // for "search by photo" without us having
+                    // to build a parallel pipeline.
                     IconButton(
-                      onPressed: () {},
+                      onPressed: () => context.push('/recreate-look'),
                       icon: const Icon(
                         Icons.camera_alt_outlined,
                         size: 20,
