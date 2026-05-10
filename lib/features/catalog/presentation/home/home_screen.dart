@@ -210,15 +210,22 @@ class _HomeScreenState extends State<HomeScreen>
           // sticky AppBar. Renders flash-sale slides + uniquely
           // designed bank-offer slides (metallic gradient with a
           // copy-code CTA) + section-scoped category-sale
-          // slides. Filtered by the active tab's gender so a
-          // customer on KIDS only sees kids + sitewide offers,
-          // never bridal lehengas. Hides itself when the
-          // filtered set is empty.
-          SliverToBoxAdapter(
-            child: HomePromoCarousel(
-              activeGender: _activeCategory?.name.toLowerCase(),
+          // slides.
+          //
+          // Visibility rule: the carousel stays HIDDEN on initial
+          // home load and only appears once the user explicitly
+          // picks MEN / WOMEN / KIDS — same gate the subcategory
+          // row uses below. Keeps the cold-launch home calm,
+          // and signals that ads are tailored to a section.
+          // Once revealed, [HomePromoCarousel] filters by the
+          // active tab's gender so KIDS never sees a bridal
+          // lehenga slide.
+          if (_userTappedTab)
+            SliverToBoxAdapter(
+              child: HomePromoCarousel(
+                activeGender: _activeCategory?.name.toLowerCase(),
+              ),
             ),
-          ),
 
           // Subcategory row — shown once user taps a tab
           if (_userTappedTab) ...[
