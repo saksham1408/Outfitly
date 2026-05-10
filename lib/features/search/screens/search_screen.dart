@@ -321,17 +321,6 @@ class _SearchScreenState extends State<SearchScreen> {
                   _chip(tag, leadingIcon: Icons.trending_up_rounded))
               .toList(),
         ),
-
-        const SizedBox(height: 32),
-
-        _sectionTitle('QUICK LINKS'),
-        const SizedBox(height: 10),
-        _quickLink(
-          icon: Icons.local_shipping_outlined,
-          label: 'Track your orders',
-          subtitle: 'Live stitching pipeline updates',
-          onTap: () {},
-        ),
       ],
     );
   }
@@ -421,67 +410,6 @@ class _SearchScreenState extends State<SearchScreen> {
                 fontSize: 13,
                 color: AppColors.textSecondary,
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _quickLink({
-    required IconData icon,
-    required String label,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border.withAlpha(60)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withAlpha(10),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, size: 22, color: AppColors.primary),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: GoogleFonts.manrope(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.manrope(
-                      fontSize: 11,
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 14,
-              color: AppColors.textTertiary,
             ),
           ],
         ),
