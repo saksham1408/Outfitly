@@ -16,6 +16,13 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        // flutter_local_notifications (used by the Wardrobe Planner)
+        // depends on Java 8+ APIs that aren't on every Android
+        // version — desugaring polyfills them at compile time so
+        // the same APK runs on minSdk 21+. Without this the
+        // release build fails with "core library desugaring
+        // required for :flutter_local_notifications".
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -44,4 +51,12 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Provides the Java 8+ API polyfills that
+    // `isCoreLibraryDesugaringEnabled = true` above requires.
+    // Pinned to 2.1.4 — current stable, matches the version
+    // flutter_local_notifications documents in its readme.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
