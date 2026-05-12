@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/theme.dart';
 import '../checkout/data/cart_repository.dart';
 import '../checkout/models/order_payload.dart';
+import '../messaging/presentation/share_with_friend_sheet.dart';
 import '../wishlist/data/wishlist_repository.dart';
 import 'catalog_service.dart';
 import 'models/product_model.dart';
@@ -159,6 +160,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             expandedHeight: 340,
             pinned: true,
             backgroundColor: AppColors.surface,
+            // Share-with-a-friend lives in the AppBar so it
+            // doesn't compete with the primary Add to Bag /
+            // Wishlist row at the bottom. Routes through
+            // `showShareWithFriendSheet`, which pops a friend
+            // picker, optional comment field, and INSERTs a
+            // row into `public.messages` with an outfit-share
+            // attachment on tap of Send.
+            actions: [
+              IconButton(
+                tooltip: 'Share with a friend',
+                icon: const Icon(
+                  Icons.ios_share_rounded,
+                  color: AppColors.primary,
+                ),
+                onPressed: () => showShareWithFriendSheet(
+                  context,
+                  product: product,
+                ),
+              ),
+              const SizedBox(width: 4),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 color: AppColors.surfaceVariant,

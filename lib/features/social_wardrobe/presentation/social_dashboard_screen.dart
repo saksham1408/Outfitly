@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/network/supabase_client.dart';
 import '../../../core/theme/theme.dart';
 import '../../digital_wardrobe/data/wardrobe_repository.dart';
+import '../../messaging/data/messages_repository.dart';
 import '../data/social_repository.dart';
 import '../models/friend_connection.dart';
 import 'add_friend_sheet.dart';
@@ -257,6 +258,13 @@ class _SocialDashboardScreenState extends State<SocialDashboardScreen> {
                       onWithdraw: _withdraw,
                     ),
                   _FriendsRow(friends: _friends, selfId: selfId),
+                  const SizedBox(height: 16),
+                  // ── Messages entry ──
+                  // Visible to users who have any accepted
+                  // friend so the chat surface is discoverable
+                  // without bloating the dashboard for someone
+                  // who hasn't added anyone yet.
+                  if (_friends.isNotEmpty) const _MessagesTile(),
                   const SizedBox(height: 24),
                   _ActivitySection(entries: _activity),
                 ],
@@ -711,6 +719,108 @@ class _Avatar extends StatelessWidget {
               ),
             )
           : null,
+    );
+  }
+}
+
+/// Entry tile for the chat surface — sits below the friends row
+/// on the social dashboard. Binds to
+/// [MessagesRepository.unreadCountStream] so the trailing badge
+/// updates live without a manual refresh.
+class _MessagesTile extends StatelessWidget {
+  const _MessagesTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => context.push('/loop/chats'),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.primary.withAlpha(20)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withAlpha(35),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.forum_rounded,
+                    color: AppColors.accent,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Messages',
+                        style: GoogleFonts.manrope(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Chat with friends · share outfits',
+                        style: GoogleFonts.manrope(
+                          fontSize: 12,
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                StreamBuilder<int>(
+                  stream: MessagesRepository.instance.unreadCountStream(),
+                  builder: (context, snap) {
+                    final count = snap.data ?? 0;
+                    if (count == 0) {
+                      return const Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 14,
+                        color: AppColors.textTertiary,
+                      );
+                    }
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        count > 99 ? '99+' : '$count',
+                        style: GoogleFonts.manrope(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

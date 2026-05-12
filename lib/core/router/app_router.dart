@@ -62,6 +62,8 @@ import '../../features/digital_wardrobe/presentation/style_anchor_screen.dart';
 import '../../features/social_wardrobe/presentation/social_dashboard_screen.dart';
 import '../../features/social_wardrobe/presentation/friend_closet_screen.dart';
 import '../../features/social_wardrobe/presentation/borrow_requests_screen.dart';
+import '../../features/messaging/presentation/chat_list_screen.dart';
+import '../../features/messaging/presentation/chat_conversation_screen.dart';
 import '../../features/custom_stitching/presentation/book_fabric_pickup_screen.dart';
 import '../../features/custom_stitching/presentation/custom_stitching_dashboard_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
@@ -498,6 +500,27 @@ abstract final class AppRouter {
         path: '/borrow-requests',
         name: 'borrowRequests',
         builder: (context, state) => const BorrowRequestsScreen(),
+      ),
+
+      // ── Loop chat ──
+      // List of conversations + per-friend conversation screen.
+      // Reached from the Loop / social dashboard's new
+      // "Messages" tile and from the friend-share flow on the
+      // PDP. RLS (migration 048) keeps every row scoped to its
+      // sender or recipient.
+      GoRoute(
+        path: '/loop/chats',
+        name: 'chats',
+        builder: (context, state) => const ChatListScreen(),
+        routes: [
+          GoRoute(
+            path: ':friendId',
+            name: 'chatConversation',
+            builder: (context, state) => ChatConversationScreen(
+              friendId: state.pathParameters['friendId']!,
+            ),
+          ),
+        ],
       ),
 
       // ── Marketing & Promotions ──
