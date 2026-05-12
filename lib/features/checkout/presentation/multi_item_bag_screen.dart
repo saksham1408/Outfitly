@@ -3,7 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/locale/money.dart';
+import '../../../core/network/supabase_client.dart';
 import '../../../core/theme/theme.dart';
+import '../../combos/models/combo_catalog.dart';
 import '../data/cart_repository.dart';
 import '../models/cart_item.dart';
 
@@ -15,8 +17,174 @@ import '../models/cart_item.dart';
 /// since the bespoke flow shipped); this one binds to
 /// [CartRepository.instance.items] and renders whatever the
 /// customer has saved across multiple PDP visits.
-class MultiItemBagScreen extends StatelessWidget {
+class MultiItemBagScreen extends StatefulWidget {
   const MultiItemBagScreen({super.key});
+
+  @override
+  State<MultiItemBagScreen> createState() => _MultiItemBagScreenState();
+}
+
+class _MultiItemBagScreenState extends State<MultiItemBagScreen> {
+  /// True while the CHECKOUT round-trip (orders insert + cart
+  /// wipe + routing decision) is in flight. Disables the CTA so
+  /// double-taps can't create duplicate order rows.
+  bool _placing = false;
+
+  /// CHECKOUT handler.
+  ///
+  /// The bag carries items added from two paths:
+  ///   * **Combo flow** — every cart row already has a `size`
+  ///     because the wizard's size step is mandatory. The size
+  ///     might be a chart label ("S", "L"), a manual-
+  ///     measurements blob, or the sentinel "Home Tailor Visit"
+  ///     if the customer booked a home visit mid-wizard.
+  ///   * **PDP "Add to Bag"** — the row may have no size set
+  ///     yet (single-item bespoke flow defers measurement to
+  ///     checkout).
+  ///
+  /// Strategy:
+  ///   * If every item already has a non-empty `size`, we have
+  ///     everything we need to place the order. Insert rows
+  ///     into `public.orders`, clear the bag, and route the
+  ///     customer to the live tailor-visit tracker (if they
+  ///     booked one) or `/orders`.
+  ///   * Otherwise fall back to the existing
+  ///     `/measurements/decision` flow so the customer picks
+  ///     how they want to be measured.
+  Future<void> _handleCheckout() async {
+    if (_placing) return;
+
+    final items = CartRepository.instance.items.value;
+    if (items.isEmpty) return;
+
+    final allHaveSize =
+        items.every((it) => (it.size ?? '').trim().isNotEmpty);
+    if (!allHaveSize) {
+      // At least one bag row needs measurements — defer to the
+      // existing decision screen as before.
+      context.push('/measurements/decision');
+      return;
+    }
+
+    final hasHomeTailorVisit = items.any(
+      (it) => isTailorVisitSize(it.size),
+    );
+
+    setState(() => _placing = true);
+    try {
+      final user = AppSupabase.client.auth.currentUser;
+      if (user == null) {
+        throw StateError('Sign in to place an order.');
+      }
+
+      // Estimated delivery: a fortnight from now is the
+      // conservative default the atelier publishes. Stored on
+      // the `orders.estimated_delivery` column (date, not
+      // timestamp).
+      final estimatedDelivery = DateTime.now()
+          .add(const Duration(days: 14))
+          .toIso8601String()
+          .split('T')
+          .first;
+
+      final rows = <Map<String, dynamic>>[];
+      for (final it in items) {
+        rows.add({
+          'user_id': user.id,
+          'product_name': it.productName,
+          if (it.fabric != null) 'fabric': it.fabric,
+          'total_price': it.lineTotal,
+          // 'order_placed' is the very first status in the
+          // pipeline check from migration 008.
+          'status': 'order_placed',
+          'estimated_delivery': estimatedDelivery,
+          'design_choices': <String, dynamic>{
+            if (it.fabric != null) 'fabric': it.fabric,
+            if (it.size != null) 'size': it.size,
+            'quantity': it.quantity,
+            'unit_price': it.productPrice,
+          },
+          'tracking_note': isTailorVisitSize(it.size)
+              ? 'Measurements via tailor home-visit.'
+              : (isManualSize(it.size)
+                  ? 'Self-reported measurements at checkout.'
+                  : 'Standard chart size.'),
+        });
+      }
+
+      await AppSupabase.client.from('orders').insert(rows);
+      await CartRepository.instance.clear();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.primary,
+          duration: const Duration(seconds: 3),
+          content: Text(
+            '${items.length} order${items.length == 1 ? '' : 's'} placed — '
+            'we\'ll keep you posted as each piece moves through the pipeline.',
+            style: GoogleFonts.manrope(color: Colors.white),
+          ),
+        ),
+      );
+
+      // Route decision — if any item was a home-visit, surface
+      // the live tracker for the most-recent pending appointment
+      // so the customer sees the tailor's status in real time.
+      // Otherwise land on the standard /orders list.
+      String? aptId;
+      if (hasHomeTailorVisit) {
+        aptId = await _findActiveAppointmentId(user.id);
+      }
+      if (!mounted) return;
+      if (aptId != null) {
+        context.go('/tailor-visit/$aptId');
+      } else {
+        context.go('/orders');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.error,
+          content: Text(
+            'Couldn\'t place order: $e',
+            style: GoogleFonts.manrope(color: Colors.white),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _placing = false);
+    }
+  }
+
+  /// Look up the user's most recent in-flight tailor visit so we
+  /// can route them to its live tracker after checkout. "In
+  /// flight" = any status that isn't `completed` or `cancelled`.
+  /// Returns null when there's nothing to show, in which case
+  /// the caller falls back to `/orders`.
+  Future<String?> _findActiveAppointmentId(String userId) async {
+    try {
+      final row = await AppSupabase.client
+          .from('tailor_appointments')
+          .select('id')
+          .eq('user_id', userId)
+          .inFilter('status', const [
+            'pending',
+            'pending_tailor_approval',
+            'accepted',
+            'en_route',
+            'arrived',
+          ])
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      return row?['id']?.toString();
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +242,11 @@ class MultiItemBagScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                _BagSummary(items: items),
+                _BagSummary(
+                  items: items,
+                  placing: _placing,
+                  onCheckoutTap: _handleCheckout,
+                ),
               ],
             );
           },
@@ -280,9 +452,21 @@ class _StepBtn extends StatelessWidget {
 // ────────────────────────────────────────────────────────────
 
 class _BagSummary extends StatelessWidget {
-  const _BagSummary({required this.items});
+  const _BagSummary({
+    required this.items,
+    required this.placing,
+    required this.onCheckoutTap,
+  });
 
   final List<CartItem> items;
+
+  /// True while the parent screen is busy placing the orders.
+  /// Disables + spinnerises the CHECKOUT button.
+  final bool placing;
+
+  /// Callback the parent state owns — covers the full checkout
+  /// pipeline (orders insert, cart clear, tracker routing).
+  final VoidCallback onCheckoutTap;
 
   @override
   Widget build(BuildContext context) {
@@ -338,21 +522,36 @@ class _BagSummary extends StatelessWidget {
                 SizedBox(
                   height: 50,
                   child: ElevatedButton.icon(
-                    // CHECKOUT routes the customer into the
-                    // Measurements decision flow first — the
-                    // catalog is bespoke-tailored, so we need
-                    // measurements (AI scan / manual entry /
-                    // home tailor visit) before we can hand the
-                    // order to the atelier. The decision screen
-                    // is null-payload-safe, which is what we
-                    // pass here because the bag is a multi-item
-                    // checkout (the legacy single-item express
-                    // path is for the customisation wizard).
-                    onPressed: () =>
-                        context.push('/measurements/decision'),
-                    icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                    // CHECKOUT delegates to `_handleCheckout`,
+                    // which:
+                    //   * places the orders straight away when
+                    //     every cart row already has a `size`
+                    //     (combo flow, or any flow where the
+                    //     customer picked Home Tailor / Manual
+                    //     measurements earlier), and routes to
+                    //     the live tailor-visit tracker if a
+                    //     visit was booked;
+                    //   * falls back to the legacy measurements
+                    //     decision screen when at least one row
+                    //     hasn't been measured yet.
+                    onPressed: placing ? null : onCheckoutTap,
+                    icon: placing
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                        : const Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 18,
+                          ),
                     label: Text(
-                      'CHECKOUT',
+                      placing ? 'PLACING…' : 'CHECKOUT',
                       style: GoogleFonts.manrope(
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
