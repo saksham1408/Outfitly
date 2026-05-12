@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/locale/money.dart';
 import '../../../core/network/supabase_client.dart';
 import '../../../core/theme/theme.dart';
+import '../../checkout/data/cart_repository.dart';
 import '../data/combo_repository.dart';
 import '../models/combo_draft.dart';
 import '../models/combo_set.dart';
@@ -80,14 +81,23 @@ class _ComboResultsScreenState extends State<ComboResultsScreen> {
     });
   }
 
-  /// Persist the entire combo as N rows in `public.orders` —
-  /// one per item — sharing a `combo_set_id` so the atelier
-  /// dashboard can group them. The tracking screen treats each
-  /// row independently for measurement coordination + status.
+  /// Persist the entire combo as N rows in `public.cart_items` —
+  /// one per item — and land the customer on the multi-item bag
+  /// (`/cart`) so they can review the set and tap CHECKOUT.
   ///
-  /// On success we route the customer to /order-success which
-  /// already handles the multi-order confirmation beat (and the
-  /// tailor-visit deep-link if measurements were requested).
+  /// Earlier behaviour skipped the cart and INSERTed directly
+  /// into `orders` then bounced to Home, which felt broken: the
+  /// user tapped "Add Full Set to Cart" but had no way to see
+  /// the cart or pay. Now the button matches its label exactly.
+  ///
+  /// `product_id` is synthesised as `combo:<set>:<memberIdx>` so
+  /// every member's piece is its own line in the bag, with the
+  /// combo discount pre-applied to `product_price` so the totals
+  /// in the bag already reflect the bundled price.
+  ///
+  /// `fabric` + `size` columns carry the per-member customisation
+  /// straight through to the cart line, so the bag UI shows the
+  /// full brief without us needing a sidecar JSON column.
   Future<void> _addFullSetToCart(ComboSet set) async {
     final user = AppSupabase.client.auth.currentUser;
     if (user == null) {
@@ -97,75 +107,75 @@ class _ComboResultsScreenState extends State<ComboResultsScreen> {
       return;
     }
 
-    final rows = <Map<String, dynamic>>[];
-    final estimatedDelivery = DateTime.now()
-        .add(const Duration(days: 14))
-        .toIso8601String()
-        .split('T')
-        .first;
-
-    // We persist each item with its garment + fabric + size
-    // pulled from the wizard draft, so the atelier sees the full
-    // brief in design_choices on every row. Sizes are
-    // per-member (siblings of the same role can be different
-    // ages); we walk the expandedRoster in step with the
-    // ComboItems since fetchMatchingCombos preserves the
-    // roster's iteration order.
     final draft = widget.draft;
     final expanded = draft.expandedRoster;
+    final fabric = draft.fabric;
+    final discountFactor = 1 - set.discountPercent / 100.0;
 
-    var memberIdx = 0;
-    for (final item in set.items) {
-      // Pro-rate the combo discount across each row so the line
-      // items add up to the bundled price exactly. Without this,
-      // the per-row prices would total the pre-discount value.
-      final perItemPrice =
-          item.price * (1 - set.discountPercent / 100.0);
+    // Build one cart_items row per piece, walking expandedRoster
+    // in step with the ComboItems (fetchMatchingCombos preserves
+    // roster order). Per-member size + role label go onto the
+    // cart row so the bag reads "Royal Blue Lehenga · Daughter
+    // #1 · 6-8Y" — the customer never sees a wall of identical
+    // line items.
+    final rows = <Map<String, dynamic>>[];
+    for (var memberIdx = 0; memberIdx < set.items.length; memberIdx++) {
+      final item = set.items[memberIdx];
+      final perItemPrice = item.price * discountFactor;
+      final memberRole =
+          memberIdx < expanded.length ? expanded[memberIdx] : item.role;
+      final size = draft.sizeByMemberIndex[memberIdx];
 
-      final size = memberIdx < expanded.length
-          ? draft.sizeByMemberIndex[memberIdx]
-          : null;
-      final garment = draft.garmentByRole[item.role];
-      memberIdx++;
+      // Build a "Garment · Member · Size" composite name so the
+      // bag row tells the full story without needing a sidecar
+      // metadata blob. Falls back gracefully when any field is
+      // missing.
+      final memberLabel = memberRole.label;
+      final composedName = _composeProductName(
+        productName: item.productName,
+        memberLabel: memberLabel,
+        size: size,
+      );
 
       rows.add({
         'user_id': user.id,
-        'product_name': item.productName,
-        'fabric': draft.fabric,
-        'total_price': perItemPrice,
-        'status': 'pending_admin_approval',
-        'estimated_delivery': estimatedDelivery,
-        'design_choices': {
-          'combo_set_id': set.id,
-          'combo_set_name': set.name,
-          'role': item.role.name,
-          'role_label': item.role.label,
-          'discount_percent': set.discountPercent,
-          if (garment != null) 'garment_type': garment,
-          if (draft.fabric != null) 'fabric': draft.fabric,
-          if (size != null) 'size': size,
-        },
-        'tracking_note':
-            'Part of "${set.name}" — coordinated with the rest of the family roster.',
+        // Synthetic id — distinct per combo + member so the same
+        // user can have two copies of the same combo set in
+        // their bag (a "Diwali for us" + a "Diwali for the
+        // in-laws" scenario).
+        'product_id': 'combo:${set.id}:$memberIdx',
+        'product_name': composedName,
+        'product_price': perItemPrice,
+        'quantity': 1,
+        if (fabric != null) 'fabric': fabric,
+        if (size != null) 'size': size,
       });
     }
 
     try {
-      await AppSupabase.client.from('orders').insert(rows);
+      await AppSupabase.client.from('cart_items').insert(rows);
+      // Refresh the local cache so the home AppBar's bag badge
+      // bumps immediately + the /cart screen renders the rows
+      // without waiting on Realtime.
+      await CartRepository.instance.refresh();
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: AppColors.primary,
-          duration: const Duration(seconds: 3),
+          duration: const Duration(seconds: 2),
           content: Text(
-            '${set.items.length} pieces queued — combo discount of '
+            '${set.items.length} pieces added to your bag — combo discount of '
             '${set.discountPercent.toStringAsFixed(0)}% applied.',
             style: GoogleFonts.manrope(color: Colors.white),
           ),
         ),
       );
-      // Pop the combo flow so the customer lands on Home.
-      context.go('/home');
+      // Land on the bag so the customer can review + check out.
+      // `go` (not `push`) collapses the combo wizard's nav stack
+      // — the user came in for an action, not to drill back
+      // through six screens.
+      context.go('/cart');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -178,6 +188,20 @@ class _ComboResultsScreenState extends State<ComboResultsScreen> {
         ),
       );
     }
+  }
+
+  /// "Royal Blue Lehenga · Daughter #2 · 6-8Y" — composite
+  /// display string used as the cart-line product name. Skips
+  /// pieces that are null/empty so a missing size doesn't leave
+  /// a dangling separator.
+  String _composeProductName({
+    required String productName,
+    required String memberLabel,
+    String? size,
+  }) {
+    final parts = <String>[productName, memberLabel];
+    if (size != null && size.isNotEmpty) parts.add(size);
+    return parts.join(' · ');
   }
 
   @override
