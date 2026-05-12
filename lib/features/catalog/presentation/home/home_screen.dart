@@ -16,6 +16,7 @@ import 'widgets/atelier_story_card.dart';
 import 'widgets/featured_collections_row.dart';
 import 'widgets/home_sticky_header.dart';
 import 'widgets/style_quote_card.dart';
+import 'widgets/whats_happening_card.dart';
 
 /// Screen states: Loading → Data / Error.
 enum _LoadState { loading, data, error }
@@ -237,8 +238,14 @@ class _HomeScreenState extends State<HomeScreen>
           ] else
             const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
-          // Hero banner
-          SliverToBoxAdapter(child: _buildHeroBanner()),
+          // ── "What's Happening" hero ──
+          // Replaces the old passive "Craft Your Signature Look"
+          // banner. Surfaces the user's most-recent in-flight
+          // tailor visit / fabric pickup / bespoke order with a
+          // one-tap Track CTA. Collapses to zero height when
+          // nothing's active so a fresh account sees a calm
+          // home, not a dead box.
+          const SliverToBoxAdapter(child: WhatsHappeningCard()),
 
           // ── Stitch My Fabric premium entry ──
           // Sits directly under the hero strip so a customer who
@@ -560,43 +567,6 @@ class _HomeScreenState extends State<HomeScreen>
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeroBanner() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        height: 160,
-        decoration: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Text(
-              'Craft Your\nSignature Look',
-              style: GoogleFonts.newsreader(
-                fontSize: 24,
-                fontStyle: FontStyle.italic,
-                color: Colors.white,
-                height: 1.1,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Custom-stitched from fabric to finish',
-              style: GoogleFonts.manrope(
-                fontSize: 12,
-                color: Colors.white.withAlpha(200),
-              ),
-            ),
-          ],
         ),
       ),
     );
