@@ -25,7 +25,9 @@ import '../models/custom_stitch_order.dart';
 /// [orders] (a [ValueNotifier]) — same pattern the rest of the
 /// repositories in this codebase use (see [WardrobeRepository]).
 class CustomStitchingRepository {
-  CustomStitchingRepository._();
+  CustomStitchingRepository._() {
+    _attachAuthListener();
+  }
   static final CustomStitchingRepository instance =
       CustomStitchingRepository._();
 
@@ -36,6 +38,42 @@ class CustomStitchingRepository {
 
   final ValueNotifier<List<CustomStitchOrder>> _orders =
       ValueNotifier<List<CustomStitchOrder>>(const <CustomStitchOrder>[]);
+
+  /// Subscription handle for the auth-state listener. Kept on
+  /// the singleton so it survives the app lifetime; not torn
+  /// down because the repository itself is process-scoped.
+  // ignore: unused_field
+  StreamSubscription<AuthState>? _authSub;
+
+  /// Watch auth-state transitions so the in-memory cache never
+  /// outlives the user it belongs to. Without this, signing out
+  /// and back in as a different account would briefly render
+  /// the previous user's bookings on the dashboard (the cache
+  /// hangs around until the next successful fetch).
+  ///
+  /// We clear on **every** transition that isn't a passive token
+  /// refresh — signedIn, signedOut, userUpdated, and
+  /// initialSession all warrant a fresh start because any of
+  /// them can swap the authenticated user.
+  void _attachAuthListener() {
+    _authSub = _client.auth.onAuthStateChange.listen((event) {
+      switch (event.event) {
+        case AuthChangeEvent.signedIn:
+        case AuthChangeEvent.signedOut:
+        case AuthChangeEvent.userUpdated:
+        case AuthChangeEvent.initialSession:
+          // Drop anything cached from the previous session.
+          // Whoever is now signed in will trigger their own
+          // fetch on the next dashboard mount.
+          _orders.value = const <CustomStitchOrder>[];
+          break;
+        default:
+          // Token refresh, password recovery, MFA, etc — same
+          // user, same data, keep the cache.
+          break;
+      }
+    });
+  }
 
   /// Live list of the calling user's bookings. The dashboard binds
   /// to this via a [ValueListenableBuilder] so it rebuilds the
