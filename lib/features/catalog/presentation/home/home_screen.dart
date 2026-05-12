@@ -12,12 +12,17 @@ import '../../domain/models/sub_category.dart';
 import '../widgets/category_row_shimmer.dart';
 import '../widgets/error_retry.dart';
 import '../widgets/sub_category_row.dart';
+import 'widgets/ai_stylist_glass_card.dart';
 import 'widgets/atelier_story_card.dart';
 import 'widgets/featured_collections_row.dart';
 import 'widgets/home_sticky_header.dart';
+import 'widgets/live_activity_banner.dart';
 import 'widgets/occasion_picker_strip.dart';
+import 'widgets/quick_actions_3d_grid.dart';
 import 'widgets/refer_friends_card.dart';
+import 'widgets/smart_context_header.dart';
 import 'widgets/style_quote_card.dart';
+import 'widgets/wardrobe_stats_row.dart';
 
 /// Screen states: Loading → Data / Error.
 enum _LoadState { loading, data, error }
@@ -239,28 +244,63 @@ class _HomeScreenState extends State<HomeScreen>
           ] else
             const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
-          // The "What's Happening" hero card lived here briefly
-          // but was removed by request — the active tailor visit
-          // / pickup / order surfaces are still reachable via the
-          // Profile → Order History entry and the dedicated
-          // trackers. Leaving the slot empty keeps the home feed
-          // moving straight from the location header into the
-          // service CTAs (Stitch My Fabric, Family & Combos).
+          // ═══════════════════════════════════════════════════
+          // PREMIUM DASHBOARD OVERHAUL — five-feature stack.
+          //
+          // Order (top → bottom):
+          //   1. SmartContextHeader   — time-aware gradient +
+          //                              greeting + weather strip
+          //   5. LiveActivityBanner   — pulsing tracker pinned to
+          //                              the top of the scroll
+          //                              area when there's a
+          //                              tailor visit / borrow in
+          //                              flight; hides otherwise
+          //   2. QuickActions3DGrid   — 2×2 raised "pop" buttons
+          //                              for Digitize Closet,
+          //                              Book Tailor, Friend's
+          //                              Closet, Active Sales
+          //   3. AiStylistGlassCard   — glassmorphism hero with
+          //                              "Start Chat" → /outfitly-ai
+          //   4. WardrobeStatsRow     — gamified horizontal stats
+          //                              (closet value, items
+          //                              digitised, style streak)
+          //
+          // The existing service CTAs (Stitch My Fabric, Family
+          // & Combos) survive at the bottom as supporting content
+          // so we don't drop functionality the user might
+          // expect — they read as a second tier after the new
+          // primary dashboard.
+          // ═══════════════════════════════════════════════════
 
-          // ── Stitch My Fabric premium entry ──
-          // Sits directly under the hero strip so a customer who
-          // already owns unstitched fabric sees the doorstep-
-          // tailor service before scrolling further. Routes into
-          // the isolated CustomStitchingDashboardScreen at
-          // /custom-stitching/dashboard.
-          const SliverToBoxAdapter(child: SizedBox(height: 20)),
+          // 1. Smart Context Header.
+          const SliverToBoxAdapter(child: SmartContextHeader()),
+
+          // 5. Live Activity Banner (auto-hides when nothing
+          //    in flight). Placed near the top because the
+          //    "your tailor is on the way" pulse needs to
+          //    cut through.
+          const SliverToBoxAdapter(child: LiveActivityBanner()),
+
+          // 2. 3D Quick Actions Grid.
+          const SliverToBoxAdapter(child: QuickActions3DGrid()),
+
+          // 3. Glassmorphism AI Stylist hero.
+          const SliverToBoxAdapter(child: SizedBox(height: 18)),
+          const SliverToBoxAdapter(child: AiStylistGlassCard()),
+
+          // 4. Gamified Wardrobe Stats — horizontal scroll.
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          _SectionLabel(eyebrow: 'YOUR WARDROBE', title: 'Stats at a glance'),
+          const SliverToBoxAdapter(child: SizedBox(height: 12)),
+          const SliverToBoxAdapter(child: WardrobeStatsRow()),
+
+          // ── Supporting service CTAs ──
+          // Kept below the new dashboard so users who scroll
+          // past the primary surface still find them. Stitch My
+          // Fabric + Family Combos are durable revenue surfaces;
+          // demoting them, not killing them.
+          const SliverToBoxAdapter(child: SizedBox(height: 28)),
           SliverToBoxAdapter(child: _buildStitchMyFabricCta()),
-
-          // ── Family & Combos premium entry ──
-          // Anchored just under the Stitch My Fabric card so the
-          // two flagship CTAs read as a stacked pair before the
-          // long-tail content below kicks in. Routes into the
-          // Couple-vs-Family fork at /combo-selection.
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
           SliverToBoxAdapter(child: _buildFamilyCombosCta()),
 
@@ -594,4 +634,49 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+}
+
+/// Tight eyebrow + italic title header used between the new
+/// dashboard modules — keeps the visual rhythm consistent with
+/// the existing [EditorialSectionHeader] used by The Edit /
+/// Atelier Story but takes less vertical space.
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({required this.eyebrow, required this.title});
+
+  final String eyebrow;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              eyebrow,
+              style: GoogleFonts.manrope(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.6,
+                color: AppColors.accent,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: GoogleFonts.newsreader(
+                fontSize: 22,
+                fontStyle: FontStyle.italic,
+                color: AppColors.primary,
+                height: 1.05,
+                letterSpacing: -0.3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
