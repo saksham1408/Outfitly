@@ -329,7 +329,15 @@ class _FriendsRow extends StatelessWidget {
           final profile = f.otherProfile;
           if (profile == null) return const SizedBox.shrink();
           return GestureDetector(
-            onTap: () => context.push('/friend-closet/${profile.id}'),
+            // Tap → chat with the friend (matches every other
+            // social app's mental model). The closet stays
+            // reachable via the "View closet" action on the
+            // chat screen's AppBar. Long-press still routes
+            // straight to the closet for power users who lived
+            // there before.
+            onTap: () => context.push('/loop/chats/${profile.id}'),
+            onLongPress: () =>
+                context.push('/friend-closet/${profile.id}'),
             child: Column(
               children: [
                 _Avatar(profile: profile, size: 64),

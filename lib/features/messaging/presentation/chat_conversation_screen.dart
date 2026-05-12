@@ -146,6 +146,21 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
             ),
           ],
         ),
+        // "View closet" action — keeps the friend-closet
+        // surface discoverable now that the friend-avatar tap
+        // on the Loop dashboard routes here instead of to
+        // /friend-closet directly.
+        actions: [
+          IconButton(
+            tooltip: 'View ${_friendName.split(' ').first}\'s closet',
+            icon: const Icon(
+              Icons.checkroom_outlined,
+              color: AppColors.primary,
+            ),
+            onPressed: () => context.push('/friend-closet/${widget.friendId}'),
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
       body: SafeArea(
         child: Column(
