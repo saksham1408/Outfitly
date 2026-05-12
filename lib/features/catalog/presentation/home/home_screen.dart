@@ -15,6 +15,7 @@ import '../widgets/sub_category_row.dart';
 import 'widgets/atelier_story_card.dart';
 import 'widgets/featured_collections_row.dart';
 import 'widgets/home_sticky_header.dart';
+import 'widgets/refer_friends_card.dart';
 import 'widgets/style_quote_card.dart';
 import 'widgets/whats_happening_card.dart';
 
@@ -282,6 +283,17 @@ class _HomeScreenState extends State<HomeScreen>
           // Style Quote — pure decorative breathing beat.
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
           const SliverToBoxAdapter(child: StyleQuoteCard()),
+
+          // ── Refer & Earn ──
+          // Growth lever at the bottom of the feed — surfaces
+          // a deterministic referral code derived from the
+          // user's uid + opens the native share sheet on tap.
+          // Sits below the editorial sections so it doesn't
+          // compete with curated content for attention; users
+          // who scroll all the way down are exactly the
+          // engaged cohort we want to ask for referrals.
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          const SliverToBoxAdapter(child: ReferFriendsCard()),
 
           const SliverToBoxAdapter(child: SizedBox(height: 80)),
         ],
