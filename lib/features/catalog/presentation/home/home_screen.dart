@@ -15,6 +15,7 @@ import '../widgets/sub_category_row.dart';
 import 'widgets/atelier_story_card.dart';
 import 'widgets/featured_collections_row.dart';
 import 'widgets/home_sticky_header.dart';
+import 'widgets/occasion_picker_strip.dart';
 import 'widgets/refer_friends_card.dart';
 import 'widgets/style_quote_card.dart';
 import 'widgets/whats_happening_card.dart';
@@ -264,6 +265,17 @@ class _HomeScreenState extends State<HomeScreen>
           // Couple-vs-Family fork at /combo-selection.
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
           SliverToBoxAdapter(child: _buildFamilyCombosCta()),
+
+          // ── Browse by Occasion ──
+          // Horizontal scroll of circular occasion badges
+          // (Wedding / Sangeet / Mehndi / Reception / Festive /
+          // Cocktail / Office / Casual). Visually distinct
+          // from every rectangular gradient card above it, so
+          // the eye gets a tactile change of pace as it scrolls
+          // down. Occasion-first browsing is the natural
+          // shopping mental model for ethnic wear.
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
+          const SliverToBoxAdapter(child: OccasionPickerStrip()),
 
           // ── Editorial sections ──
           // The home feed shifts from "service CTAs" (above) to
