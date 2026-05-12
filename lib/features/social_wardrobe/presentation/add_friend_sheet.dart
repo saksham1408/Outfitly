@@ -66,7 +66,11 @@ class _AddFriendSheetState extends State<AddFriendSheet> {
     try {
       await _social.sendFriendRequest(r.id);
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      // Pop with the recipient's uid so the caller can deep-link
+      // straight into a chat thread with them — the user just
+      // told us who they want to talk to, the least we can do
+      // is open that conversation.
+      Navigator.of(context).pop(r.id);
     } catch (e) {
       if (!mounted) return;
       setState(() {
