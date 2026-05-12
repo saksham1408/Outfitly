@@ -18,7 +18,6 @@ import 'widgets/home_sticky_header.dart';
 import 'widgets/occasion_picker_strip.dart';
 import 'widgets/refer_friends_card.dart';
 import 'widgets/style_quote_card.dart';
-import 'widgets/whats_happening_card.dart';
 
 /// Screen states: Loading → Data / Error.
 enum _LoadState { loading, data, error }
@@ -240,14 +239,13 @@ class _HomeScreenState extends State<HomeScreen>
           ] else
             const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
-          // ── "What's Happening" hero ──
-          // Replaces the old passive "Craft Your Signature Look"
-          // banner. Surfaces the user's most-recent in-flight
-          // tailor visit / fabric pickup / bespoke order with a
-          // one-tap Track CTA. Collapses to zero height when
-          // nothing's active so a fresh account sees a calm
-          // home, not a dead box.
-          const SliverToBoxAdapter(child: WhatsHappeningCard()),
+          // The "What's Happening" hero card lived here briefly
+          // but was removed by request — the active tailor visit
+          // / pickup / order surfaces are still reachable via the
+          // Profile → Order History entry and the dedicated
+          // trackers. Leaving the slot empty keeps the home feed
+          // moving straight from the location header into the
+          // service CTAs (Stitch My Fabric, Family & Combos).
 
           // ── Stitch My Fabric premium entry ──
           // Sits directly under the hero strip so a customer who
