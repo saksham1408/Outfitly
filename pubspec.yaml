@@ -94,6 +94,13 @@ dependencies:
   # in Info.plist; Android needs RECORD_AUDIO.
   speech_to_text: ^7.0.0
 
+  # ── Style Pulse chart ──
+  # Drives the "Wardrobe Utilisation" area chart on the
+  # premium home dashboard. fl_chart is the standard
+  # zero-native-dep chart lib; we use the LineChart variant
+  # with a translucent below-curve fill for the area effect.
+  fl_chart: ^0.69.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -12,12 +12,17 @@ import '../../domain/models/sub_category.dart';
 import '../widgets/category_row_shimmer.dart';
 import '../widgets/error_retry.dart';
 import '../widgets/sub_category_row.dart';
+import 'widgets/ai_morning_briefing.dart';
 import 'widgets/atelier_story_card.dart';
 import 'widgets/featured_collections_row.dart';
+import 'widgets/feed_sub_tabs.dart';
+import 'widgets/glass_stats_deck.dart';
 import 'widgets/home_sticky_header.dart';
 import 'widgets/occasion_picker_strip.dart';
 import 'widgets/refer_friends_card.dart';
+import 'widgets/style_pulse_chart.dart';
 import 'widgets/style_quote_card.dart';
+import 'widgets/tactile_quick_dock.dart';
 
 /// Screen states: Loading → Data / Error.
 enum _LoadState { loading, data, error }
@@ -239,21 +244,60 @@ class _HomeScreenState extends State<HomeScreen>
           ] else
             const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
-          // The "What's Happening" hero card lived here briefly
-          // but was removed by request — the active tailor visit
-          // / pickup / order surfaces are still reachable via the
-          // Profile → Order History entry and the dedicated
-          // trackers. Leaving the slot empty keeps the home feed
-          // moving straight from the location header into the
-          // service CTAs (Stitch My Fabric, Family & Combos).
+          // ═══════════════════════════════════════════════════
+          // PREMIUM DASHBOARD — Digital Fashion HQ
+          //
+          // Six-mandate overhaul. Vibrant colours kept to text
+          // gradients, glow borders, button accents — large
+          // surfaces stay dark navy / glass / premium neutral
+          // so the dashboard reads luxury, not arcade.
+          //
+          //  1. Glass Stats Deck       — horiz scroll of 4
+          //                              blurred glass cards
+          //                              (Items / Value / Streak
+          //                              / Active Bookings)
+          //  2. AI Morning Briefing    — animated purple→midnight
+          //                              gradient + contextual
+          //                              paragraph + Take Action
+          //  3. Style Pulse Chart      — fl_chart area chart of
+          //                              7-day mix-&-match combos
+          //                              with pink/purple glow
+          //  4. Tactile Quick Dock     — 2×2 press-down buttons
+          //  5. Feed Sub-Tabs          — All / Ethnic / Casual /
+          //                              Workwear with reactive
+          //                              placeholder feed
+          //
+          // Below that: the supporting service CTAs (Stitch My
+          // Fabric, Family & Combos) and existing editorial
+          // sections — kept for continuity, demoted under the
+          // new primary dashboard.
+          // ═══════════════════════════════════════════════════
 
+          // 1. Glass Stats Deck.
+          const SliverToBoxAdapter(child: GlassStatsDeck()),
+
+          // 2. AI Morning Briefing.
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+          const SliverToBoxAdapter(child: AiMorningBriefing()),
+
+          // 3. Style Pulse Chart.
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+          const SliverToBoxAdapter(child: StylePulseChart()),
+
+          // 4. Tactile Quick-Action Dock.
+          const SliverToBoxAdapter(child: SizedBox(height: 18)),
+          const SliverToBoxAdapter(child: TactileQuickDock()),
+
+          // 5. Feed Sub-Tabs + reactive placeholder.
+          const SliverToBoxAdapter(child: SizedBox(height: 22)),
+          const SliverToBoxAdapter(child: FeedSubTabs()),
+
+          // ── Supporting service CTAs (continuity) ──
           // ── Stitch My Fabric premium entry ──
-          // Sits directly under the hero strip so a customer who
-          // already owns unstitched fabric sees the doorstep-
-          // tailor service before scrolling further. Routes into
-          // the isolated CustomStitchingDashboardScreen at
-          // /custom-stitching/dashboard.
-          const SliverToBoxAdapter(child: SizedBox(height: 20)),
+          // Demoted but preserved — customers who already own
+          // unstitched fabric still need the doorstep-tailor
+          // service. Routes into /custom-stitching/dashboard.
+          const SliverToBoxAdapter(child: SizedBox(height: 28)),
           SliverToBoxAdapter(child: _buildStitchMyFabricCta()),
 
           // ── Family & Combos premium entry ──
