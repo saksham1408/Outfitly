@@ -213,6 +213,25 @@ class _MemberSizeCard extends StatelessWidget {
     if (result != null) onSelect(result);
   }
 
+  /// Push the existing Book Home Tailor form in pop-on-success
+  /// mode — the user fills address + date + slot, we INSERT a
+  /// `tailor_appointments` row, and the form pops back here with
+  /// the appointment id. We then stamp the `kSizeHomeTailor`
+  /// sentinel onto this member so the wizard's completion check
+  /// passes and the user can continue.
+  ///
+  /// The Partner app's dispatch radar is subscribed to pending
+  /// rows over Supabase Realtime, so the booking request will
+  /// surface on every online tailor's phone within a second —
+  /// no extra wiring needed here.
+  Future<void> _openBookTailor(BuildContext context) async {
+    final appointmentId = await context
+        .push<String>('/measurements/book-tailor?popOnSuccess=true');
+    if (appointmentId != null && appointmentId.isNotEmpty) {
+      onSelect(kSizeHomeTailor);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final options = spec.role.isChild ? kKidSizes : kAdultSizes;
@@ -318,7 +337,12 @@ class _MemberSizeCard extends StatelessWidget {
                   icon: Icons.home_repair_service_rounded,
                   label: 'Home tailor',
                   selected: isTailorVisitSize(selected),
-                  onTap: () => onSelect(kSizeHomeTailor),
+                  // Used to just stamp the sentinel locally — now
+                  // actually pushes the booking form so a real
+                  // `tailor_appointments` row is INSERTed and a
+                  // tailor receives the request. See
+                  // `_openBookTailor` above.
+                  onTap: () => _openBookTailor(context),
                 ),
               ),
             ],

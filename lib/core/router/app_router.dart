@@ -230,8 +230,15 @@ abstract final class AppRouter {
       GoRoute(
         path: '/measurements/book-tailor',
         name: 'bookTailor',
+        // `?popOnSuccess=true` is set by the Family Combos size
+        // step so the booking screen pops back to the wizard
+        // (with the new appointment id) instead of replacing the
+        // route with the live tracker. Every other caller omits
+        // the query string and gets the default tracker push.
         builder: (context, state) => BookTailorScreen(
           payload: state.extra as OrderPayload?,
+          popOnSuccess:
+              state.uri.queryParameters['popOnSuccess'] == 'true',
         ),
       ),
 

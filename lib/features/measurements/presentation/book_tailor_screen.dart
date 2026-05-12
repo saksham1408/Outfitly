@@ -10,7 +10,20 @@ import '../data/tailor_appointment_service.dart';
 class BookTailorScreen extends StatefulWidget {
   final OrderPayload? payload;
 
-  const BookTailorScreen({super.key, this.payload});
+  /// When true, the standalone success path **pops back** with the
+  /// new appointment id instead of pushReplacing the live tracker.
+  /// Used by the Family Combos size step, where the user is
+  /// mid-wizard — we want them to land back on the size screen
+  /// (sentinel now set) rather than getting kicked off into a
+  /// separate live-visit tracker. Defaults to the existing
+  /// behaviour (push the tracker) for every other caller.
+  final bool popOnSuccess;
+
+  const BookTailorScreen({
+    super.key,
+    this.payload,
+    this.popOnSuccess = false,
+  });
 
   @override
   State<BookTailorScreen> createState() => _BookTailorScreenState();
@@ -141,14 +154,34 @@ class _BookTailorScreenState extends State<BookTailorScreen> {
         scheduledTime: scheduled,
       );
       if (!mounted) return;
-      // Swap this booking form for the live tracker. `pushReplacement`
-      // (not `push`) keeps the back gesture from dropping the customer
-      // back into a stale, already-submitted form — the tracker is the
-      // authoritative "where does this live now" surface.
+
+      if (widget.popOnSuccess) {
+        // Mid-wizard caller (e.g. Family Combos size step). Pop
+        // back with the appointment id + a short snackbar so the
+        // user knows the request landed and can continue picking
+        // the rest of their roster's sizes.
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            behavior: SnackBarBehavior.floating,
+            content: Text(
+              'Tailor visit requested — a tailor will reach out to confirm.',
+            ),
+            duration: Duration(seconds: 3),
+          ),
+        );
+        context.pop(appointmentId);
+        return;
+      }
+
+      // Default path (standalone CTA). Swap this booking form for
+      // the live tracker. `pushReplacement` (not `push`) keeps the
+      // back gesture from dropping the customer back into a stale,
+      // already-submitted form — the tracker is the authoritative
+      // "where does this live now" surface.
       //
-      // The tracker's "Finding a tailor near you…" hero doubles as the
-      // submission-confirmation beat we used to get from a modal, so
-      // we don't need an extra dialog here.
+      // The tracker's "Finding a tailor near you…" hero doubles as
+      // the submission-confirmation beat we used to get from a
+      // modal, so we don't need an extra dialog here.
       context.pushReplacement('/tailor-visit/$appointmentId');
     } catch (e) {
       if (!mounted) return;
