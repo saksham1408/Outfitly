@@ -87,8 +87,26 @@ class _MultiItemBagScreenState extends State<MultiItemBagScreen> {
           .split('T')
           .first;
 
+      // Track the combo grouping as we walk the rows. If every
+      // placed order belongs to the SAME combo set, we route the
+      // customer to the dedicated combo-tracking screen at the
+      // end (couple → 2 trackers, family → 1 combined view).
+      String? sharedComboSetId;
+      var allSameCombo = true;
+
       final rows = <Map<String, dynamic>>[];
       for (final it in items) {
+        final comboMeta = _parseComboProductId(it.productId);
+        if (comboMeta == null) {
+          allSameCombo = false;
+        } else {
+          if (sharedComboSetId == null) {
+            sharedComboSetId = comboMeta.setId;
+          } else if (sharedComboSetId != comboMeta.setId) {
+            allSameCombo = false;
+          }
+        }
+
         rows.add({
           'user_id': user.id,
           'product_name': it.productName,
@@ -103,6 +121,11 @@ class _MultiItemBagScreenState extends State<MultiItemBagScreen> {
             if (it.size != null) 'size': it.size,
             'quantity': it.quantity,
             'unit_price': it.productPrice,
+            if (comboMeta != null) ...{
+              'combo_set_id': comboMeta.setId,
+              'combo_member_idx': comboMeta.memberIdx,
+              'role': comboMeta.roleName,
+            },
           },
           'tracking_note': isTailorVisitSize(it.size)
               ? 'Measurements via tailor home-visit.'
@@ -129,16 +152,23 @@ class _MultiItemBagScreenState extends State<MultiItemBagScreen> {
         ),
       );
 
-      // Route decision — if any item was a home-visit, surface
-      // the live tracker for the most-recent pending appointment
-      // so the customer sees the tailor's status in real time.
-      // Otherwise land on the standard /orders list.
+      // Route decision priority:
+      //   1. Combo flow → dedicated combo tracker (couple shows
+      //      two side-by-side timelines, family shows one
+      //      combined view). This wins over the tailor-visit
+      //      tracker because the combo screen already embeds
+      //      the visit status inline.
+      //   2. Home-tailor booking with no combo grouping → live
+      //      tailor-visit tracker.
+      //   3. Everything else → standard /orders list.
       String? aptId;
-      if (hasHomeTailorVisit) {
+      if (hasHomeTailorVisit && !(allSameCombo && sharedComboSetId != null)) {
         aptId = await _findActiveAppointmentId(user.id);
       }
       if (!mounted) return;
-      if (aptId != null) {
+      if (allSameCombo && sharedComboSetId != null) {
+        context.go('/combos/tracking/$sharedComboSetId');
+      } else if (aptId != null) {
         context.go('/tailor-visit/$aptId');
       } else {
         context.go('/orders');
@@ -157,6 +187,22 @@ class _MultiItemBagScreenState extends State<MultiItemBagScreen> {
     } finally {
       if (mounted) setState(() => _placing = false);
     }
+  }
+
+  /// Parse a `combo:<setId>:<idx>:<role>` synthetic product_id
+  /// back into its parts. Returns null for any non-combo product
+  /// (regular PDP "Add to Bag" rows). Lenient on the trailing
+  /// `:<role>` so legacy rows from before the role-encoding
+  /// change still parse cleanly (role falls back to empty).
+  _ComboCartMeta? _parseComboProductId(String? productId) {
+    if (productId == null || !productId.startsWith('combo:')) return null;
+    final parts = productId.split(':');
+    if (parts.length < 3) return null;
+    final setId = parts[1];
+    final idx = int.tryParse(parts[2]) ?? 0;
+    final role = parts.length >= 4 ? parts[3] : '';
+    if (setId.isEmpty) return null;
+    return _ComboCartMeta(setId: setId, memberIdx: idx, roleName: role);
   }
 
   /// Look up the user's most recent in-flight tailor visit so we
@@ -259,6 +305,21 @@ class _MultiItemBagScreenState extends State<MultiItemBagScreen> {
 // ────────────────────────────────────────────────────────────
 // Bag item card
 // ────────────────────────────────────────────────────────────
+
+/// Parsed shape of a combo cart row's synthetic product_id.
+/// Carried into `orders.design_choices` so the combo-tracking
+/// screen can group rows by role + set without parsing again.
+class _ComboCartMeta {
+  const _ComboCartMeta({
+    required this.setId,
+    required this.memberIdx,
+    required this.roleName,
+  });
+
+  final String setId;
+  final int memberIdx;
+  final String roleName;
+}
 
 class _BagItemCard extends StatelessWidget {
   const _BagItemCard({required this.item});

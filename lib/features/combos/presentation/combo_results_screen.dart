@@ -142,8 +142,12 @@ class _ComboResultsScreenState extends State<ComboResultsScreen> {
         // Synthetic id — distinct per combo + member so the same
         // user can have two copies of the same combo set in
         // their bag (a "Diwali for us" + a "Diwali for the
-        // in-laws" scenario).
-        'product_id': 'combo:${set.id}:$memberIdx',
+        // in-laws" scenario). The trailing `:<role>` segment is
+        // parsed back at checkout so we can stamp the role onto
+        // `orders.design_choices` and group the rows on the
+        // dedicated combo-tracking screen.
+        'product_id':
+            'combo:${set.id}:$memberIdx:${memberRole.name}',
         'product_name': composedName,
         'product_price': perItemPrice,
         'quantity': 1,

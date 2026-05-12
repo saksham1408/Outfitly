@@ -20,6 +20,7 @@ import '../../features/measurements/presentation/tailor_review_screen.dart';
 import '../../features/measurements/presentation/tailor_selection_screen.dart';
 import '../../features/combos/models/combo_draft.dart';
 import '../../features/combos/presentation/combo_results_screen.dart';
+import '../../features/combos/presentation/combo_tracking_screen.dart';
 import '../../features/combos/presentation/combo_selection_screen.dart';
 import '../../features/combos/presentation/fabric_selection_screen.dart';
 import '../../features/combos/presentation/family_builder_screen.dart';
@@ -560,6 +561,19 @@ abstract final class AppRouter {
         name: 'comboResults',
         builder: (context, state) => ComboResultsScreen(
           draft: state.extra as ComboDraft,
+        ),
+      ),
+
+      // Post-checkout tracker for combo orders. Driven entirely
+      // by `orders.design_choices->>combo_set_id` so the screen
+      // can rehydrate from any deep-link without preloaded state.
+      // Renders couple flows as two side-by-side trackers and
+      // family flows as one combined tracker.
+      GoRoute(
+        path: '/combos/tracking/:setId',
+        name: 'comboTracking',
+        builder: (context, state) => ComboTrackingScreen(
+          comboSetId: state.pathParameters['setId']!,
         ),
       ),
 
